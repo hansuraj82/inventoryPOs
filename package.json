@@ -1,0 +1,29 @@
+{
+  "name": "inventory-pos-app",
+  "version": "1.0.0",
+  "description": "Inventory Management System with POS",
+  "main": "index.js",
+  "scripts": {
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install && cd ..",
+    "start": "concurrently \"npm run start-backend\" \"npm run start-frontend\"",
+    "start-backend": "cd backend && npm run dev",
+    "start-frontend": "cd frontend && npm run dev",
+    "build": "npm run build-backend && npm run build-frontend",
+    "build-backend": "cd backend && npm install --production",
+    "build-frontend": "cd frontend && npm install && npm run build",
+    "setup-docker": "docker-compose up --build -d",
+    "docker-logs": "docker-compose logs -f",
+    "docker-down": "docker-compose down"
+  },
+  "keywords": [
+    "inventory",
+    "pos",
+    "retail",
+    "management"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.0.1"
+  }
+}

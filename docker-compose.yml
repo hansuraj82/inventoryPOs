@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:5.0
+    container_name: inventory-pos-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: inventory-pos
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - inventory-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: inventory-pos-backend
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/inventory-pos?authSource=admin
+      JWT_SECRET: your_super_secret_jwt_key_change_this_in_production
+      JWT_EXPIRE: 7d
+    depends_on:
+      - mongodb
+    networks:
+      - inventory-network
+    volumes:
+      - ./backend/src:/app/src
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: inventory-pos-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_URL: http://localhost:5000/api
+    depends_on:
+      - backend
+    networks:
+      - inventory-network
+    volumes:
+      - ./frontend/src:/app/src
+
+volumes:
+  mongodb_data:
+
+networks:
+  inventory-network:
+    driver: bridge
