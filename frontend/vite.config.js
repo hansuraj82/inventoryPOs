@@ -6,7 +6,22 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: 'terser'
+    minify: 'terser',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      },
+      onwarn(warning, warn) {
+        if (warning.code === 'MODULE_LEVEL_DIRECTIVE' || 
+            (warning.message && warning.message.includes('use client'))) {
+          return;
+        }
+        warn(warning);
+      }
+    }
+  },
+  optimizeDeps: {
+    include: ['react-hot-toast']
   },
   server: {
     port: 3000,
@@ -16,5 +31,8 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  define: {
+    'process.env': {}
   }
 });
