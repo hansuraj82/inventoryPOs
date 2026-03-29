@@ -24,13 +24,7 @@ export default defineConfig({
     include: ['react-hot-toast']
   },
   server: {
-    port: 3000,
-    proxy: {
-      '/api': {
-        target: 'https://inventorypos-xxeq.onrender.com',
-        changeOrigin: true
-      }
-    }
+    port: 3000
   },
   define: {
     'process.env': {}
