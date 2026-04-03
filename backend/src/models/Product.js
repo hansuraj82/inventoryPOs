@@ -14,6 +14,14 @@ const productSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'Please provide a price']
   },
+  sellingPrice: {
+    type: Number,
+    default: 0
+  },
+  costPrice: {
+    type: Number,
+    default: 0
+  },
   quantity: {
     type: Number,
     required: [true, 'Please provide quantity'],

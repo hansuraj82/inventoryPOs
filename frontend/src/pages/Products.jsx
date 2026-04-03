@@ -16,7 +16,8 @@ export default function Products() {
   const barcodeInputRef = useRef(null);
   const [formData, setFormData] = useState({
     name: '',
-    price: '',
+    costPrice: '',
+    sellingPrice: '',
     quantity: '',
     barcode: '',
     category: 'General',
@@ -70,7 +71,8 @@ export default function Products() {
         const product = response.data.data;
         setFormData({
           name: product.name,
-          price: product.price.toString(),
+          costPrice: product.costPrice?.toString() || '',
+          sellingPrice: product.sellingPrice?.toString() || '',
           quantity: product.quantity.toString(),
           barcode: product.barcode || '',
           category: product.category || 'General',
@@ -84,7 +86,8 @@ export default function Products() {
       // Product not found, create new with this barcode
       setFormData({
         name: '',
-        price: '',
+        costPrice: '',
+        sellingPrice: '',
         quantity: '',
         barcode: barcode,
         category: 'General',
@@ -103,7 +106,7 @@ export default function Products() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.price) {
+    if (!formData.name || !formData.costPrice || !formData.sellingPrice) {
       toast.error('Please fill in required fields');
       return;
     }
@@ -121,7 +124,8 @@ export default function Products() {
 
       setFormData({
         name: '',
-        price: '',
+        costPrice: '',
+        sellingPrice: '',
         quantity: '',
         barcode: '',
         category: 'General',
@@ -139,7 +143,8 @@ export default function Products() {
   const handleEdit = (product) => {
     setFormData({
       name: product.name,
-      price: product.price.toString(),
+      costPrice: product.costPrice?.toString() || '',
+      sellingPrice: product.sellingPrice?.toString() || '',
       quantity: product.quantity.toString(),
       barcode: product.barcode || '',
       category: product.category || 'General',
@@ -170,7 +175,8 @@ export default function Products() {
     setScannedBarcode('');
     setFormData({
       name: '',
-      price: '',
+      costPrice: '',
+      sellingPrice: '',
       quantity: '',
       barcode: '',
       category: 'General',
@@ -221,12 +227,27 @@ export default function Products() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Price *
+                Cost Price *
               </label>
               <input
                 type="number"
-                name="price"
-                value={formData.price}
+                name="costPrice"
+                value={formData.costPrice}
+                onChange={handleChange}
+                className="input-field"
+                step="0.01"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Selling Price *
+              </label>
+              <input
+                type="number"
+                name="sellingPrice"
+                value={formData.sellingPrice}
                 onChange={handleChange}
                 className="input-field"
                 step="0.01"
@@ -342,7 +363,8 @@ export default function Products() {
             <thead>
               <tr className="bg-gray-200">
                 <th className="px-4 py-3 text-left font-semibold text-gray-900">Name</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-900">Price</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-900">Cost Price</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-900">Selling Price</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-900">Quantity</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-900">Category</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-900">Barcode</th>
@@ -353,7 +375,8 @@ export default function Products() {
               {products.map((product) => (
                 <tr key={product._id} className="border-b hover:bg-gray-50">
                   <td className="px-4 py-3">{product.name}</td>
-                  <td className="px-4 py-3">{formatCurrency(product.price)}</td>
+                  <td className="px-4 py-3">{formatCurrency(product.costPrice || 0)}</td>
+                  <td className="px-4 py-3">{formatCurrency(product.sellingPrice || 0)}</td>
                   <td className="px-4 py-3">
                     <span className={product.quantity <= product.minStock ? 'text-red-600 font-semibold' : ''}>
                       {product.quantity}

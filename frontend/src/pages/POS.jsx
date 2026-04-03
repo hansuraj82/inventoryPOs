@@ -205,7 +205,9 @@ export default function POS() {
       await printInvoice(lastSale, user.shopName);
       toast.success('Invoice sent to printer');
     } catch (error) {
-      toast.error('Failed to print invoice');
+      console.log(error);
+      
+      toast.error('Failed to print invoice RE');
     }
   };
 

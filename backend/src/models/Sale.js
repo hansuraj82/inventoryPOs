@@ -6,6 +6,14 @@ const saleSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  invoiceNumber: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  customerName: {
+    type: String
+  },
   // Customer Information
   customer: {
     name: {
@@ -53,6 +61,10 @@ const saleSchema = new mongoose.Schema({
   paidAmount: {
     type: Number,
     required: true
+  },
+  totalProfit: {
+    type: Number,
+    default: 0
   },
   change: {
     type: Number,

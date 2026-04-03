@@ -107,13 +107,21 @@ exports.getProductByBarcode = async (req, res, next) => {
 // @access  Private
 exports.createProduct = async (req, res, next) => {
   try {
-    const { name, price, quantity, barcode, category, sku, description, minStock } = req.body;
+    const { name, sellingPrice, costPrice, quantity, barcode, category, sku, description, minStock } = req.body;
 
     // Validation
-    if (!name || !price) {
+    if (!name || !sellingPrice) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide name and price'
+        message: 'Please provide name and selling price'
+      });
+    }
+
+    // Validate that costPrice <= sellingPrice
+    if (costPrice && costPrice > sellingPrice) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cost price cannot be greater than selling price'
       });
     }
 
@@ -131,7 +139,9 @@ exports.createProduct = async (req, res, next) => {
     const product = await Product.create({
       user: req.user.id,
       name,
-      price,
+      price: sellingPrice,
+      sellingPrice,
+      costPrice: costPrice || 0,
       quantity: quantity || 0,
       barcode,
       category: category || 'General',
@@ -177,10 +187,26 @@ exports.updateProduct = async (req, res, next) => {
       }
     }
 
-    // Update fields
+    // Validate that costPrice <= sellingPrice
+    const sellingPrice = req.body.sellingPrice || product.sellingPrice;
+    const costPrice = req.body.costPrice || product.costPrice;
+    
+    if (costPrice && costPrice > sellingPrice) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cost price cannot be greater than selling price'
+      });
+    }
+
+    // Update fields - sync price with sellingPrice
+    const updateData = { ...req.body, updatedAt: Date.now() };
+    if (req.body.sellingPrice) {
+      updateData.price = req.body.sellingPrice;
+    }
+
     product = await Product.findByIdAndUpdate(
       req.params.id,
-      { ...req.body, updatedAt: Date.now() },
+      updateData,
       { new: true, runValidators: true }
     );
 

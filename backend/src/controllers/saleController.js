@@ -20,6 +20,36 @@ exports.getSales = async (req, res, next) => {
   }
 };
 
+// @route   GET /api/sales/search
+// @desc    Search sales
+// @access  Private
+exports.searchSales = async (req, res, next) => {
+  try {
+    const { q } = req.query;
+    if (!q) {
+      return res.status(400).json({ success: false, message: 'Please provide a search query' });
+    }
+
+    const regex = new RegExp(q, 'i');
+    const sales = await Sale.find({
+      user: req.user.id,
+      $or: [
+        { invoiceNumber: regex },
+        { customerName: regex },
+        { 'customer.mobile': regex }
+      ]
+    }).populate('items.product', 'name barcode').sort('-createdAt');
+
+    res.status(200).json({
+      success: true,
+      count: sales.length,
+      data: sales
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @route   GET /api/sales/:id
 // @desc    Get single sale
 // @access  Private
@@ -76,8 +106,19 @@ exports.createSale = async (req, res, next) => {
       });
     }
 
+    // Get user shop name
+    const User = require('../models/User');
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
     // Update product quantities
     let processedItems = [];
+    let totalProfit = 0;
 
     for (const item of items) {
       const product = await Product.findOne({
@@ -104,6 +145,10 @@ exports.createSale = async (req, res, next) => {
       product.quantity -= item.quantity;
       await product.save();
 
+      const itemCostPrice = product.costPrice || 0;
+      const itemProfit = (item.price - itemCostPrice) * item.quantity;
+      totalProfit += itemProfit;
+
       processedItems.push({
         product: product._id,
         productName: product.name,
@@ -113,13 +158,15 @@ exports.createSale = async (req, res, next) => {
       });
     }
 
-    // Create sale
+    // Create sale without invoice number first
     const creditAmount = Math.max(0, totalAmount - paidAmount);
     const change = Math.max(0, paidAmount - totalAmount);
     const isCredit = creditAmount > 0;
 
     const sale = await Sale.create({
       user: req.user.id,
+      invoiceNumber: '', // Will update after getting _id
+      customerName: customer.name,
       customer: {
         name: customer.name,
         mobile: customer.mobile,
@@ -128,6 +175,7 @@ exports.createSale = async (req, res, next) => {
       },
       items: processedItems,
       totalAmount,
+      totalProfit,
       paymentMethod,
       paidAmount,
       change,
@@ -135,6 +183,13 @@ exports.createSale = async (req, res, next) => {
       creditAmount,
       notes
     });
+
+    // Generate Invoice Number using shop name and sale _id
+    const invoiceNumber = `${user.shopName.replaceAll(' ', '').substring(0, 4).toUpperCase()}${sale._id.toString().substring(0, 4).toUpperCase()}`;
+    
+    // Update sale with invoice number
+    sale.invoiceNumber = invoiceNumber;
+    await sale.save();
 
     const populatedSale = await sale.populate('items.product', 'name barcode');
 

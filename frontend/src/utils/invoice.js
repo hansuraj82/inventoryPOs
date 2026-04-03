@@ -1,185 +1,191 @@
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import autoTable from 'jspdf-autotable';
+
 
 export const generateInvoicePDF = async (saleData, shopName) => {
-  const doc = new jsPDF();
+  const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  let yPosition = 15;
 
-  // ============== HEADER SECTION ==============
-  doc.setFontSize(18);
-  doc.setFont(undefined, 'bold');
-  doc.text(shopName, pageWidth / 2, yPosition, { align: 'center' });
-  yPosition += 8;
+  const LEFT = 15;
+  const RIGHT = pageWidth - 15;
+
+  let y = 20;
+
+  // COLORS
+  const C_MAIN = [15, 23, 42];
+  const C_ACCENT = [79, 70, 229];
+  const C_MUTED = [100, 116, 139];
+  const C_BG = [248, 250, 252];
+
+  // TOP BAR
+  doc.setFillColor(...C_ACCENT);
+  doc.rect(0, 0, pageWidth, 2, 'F');
+
+  // HEADER
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(22);
+  doc.setTextColor(...C_MAIN);
+  doc.text(shopName.toUpperCase(), LEFT, y);
+
+  // BADGE
+  const isPaid = !(saleData.isCredit && saleData.creditAmount > 0);
+  const badgeX = RIGHT - 35;
+
+  doc.setFillColor(isPaid ? 240 : 254, isPaid ? 253 : 242, isPaid ? 244 : 242);
+  doc.roundedRect(badgeX, y - 6, 35, 8, 1, 1, 'F');
+
+  doc.setFontSize(8);
+  doc.setTextColor(isPaid ? 21 : 153, isPaid ? 128 : 27, isPaid ? 61 : 27);
+  doc.text(isPaid ? "PAID IN FULL" : "PAYMENT DUE", badgeX + 17.5, y - 0.5, { align: 'center' });
+
+  y += 10;
+
+  // INFO BOX
+  doc.setFillColor(...C_BG);
+  doc.roundedRect(LEFT, y, pageWidth - 25, 25, 1, 1, 'F');
+
+  doc.setFontSize(7);
+  doc.setTextColor(...C_MUTED);
+  doc.text("BILLED TO", LEFT + 5, y + 7);
+  doc.text("INVOICE NO", RIGHT - 40, y + 7);
+  doc.text("DATE", RIGHT - 40, y + 17);
+
+  const invoiceId = saleData?._id
+    ? `${shopName.substring(0, 4).replaceAll(" ", "").toUpperCase()}${saleData._id.substring(0, 4).toUpperCase()}`
+    : "N/A";
+
+  const date = saleData.createdAt
+    ? new Date(saleData.createdAt).toLocaleDateString('en-IN')
+    : "N/A";
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C_MAIN);
+
+  doc.text(saleData.customer?.name || "Customer", LEFT + 5, y + 13);
+  doc.text(invoiceId, RIGHT, y + 7, { align: 'right' });
+  doc.text(date, RIGHT, y + 17, { align: 'right' });
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Mob: ${saleData.customer?.mobile || 'N/A'}`, LEFT + 5, y + 18);
+
+  y += 35;
+
+  // =========================
+  // 🔥 MANUAL TABLE START
+  // =========================
+
+  const colX = {
+    sno: LEFT,
+    desc: LEFT + 15,
+    qty: RIGHT - 75,
+    price: RIGHT - 50,
+    subtotal: RIGHT
+  };
+
+  const rowHeight = 8;
+
+  // HEADER ROW
+  doc.setFillColor(...C_BG);
+  doc.rect(LEFT, y, pageWidth - 30, rowHeight, 'F');
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C_ACCENT);
+
+  doc.text("#", colX.sno, y + 5);
+  doc.text("DESCRIPTION", colX.desc, y + 5);
+  doc.text("QTY", colX.qty, y + 5, { align: 'center' });
+  doc.text("UNIT PRICE", colX.price, y + 5, { align: 'right' });
+  doc.text("SUBTOTAL", colX.subtotal, y + 5, { align: 'right' });
+
+  y += rowHeight;
+
+  // LINE UNDER HEADER
+  doc.setDrawColor(...C_ACCENT);
+  doc.line(LEFT, y, RIGHT, y);
+
+  // ITEMS
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...C_MAIN);
+
+  (saleData.items || []).forEach((item, i) => {
+    const price = Number(item.price) || 0;
+    const qty = Number(item.quantity) || 0;
+    const subtotal = price * qty;
+
+    // WRAP TEXT (important)
+    const descLines = doc.splitTextToSize(item.productName, colX.qty - colX.desc - 5);
+    const dynamicHeight = Math.max(rowHeight, descLines.length * 5);
+
+    doc.text((i + 1).toString().padStart(2, '0'), colX.sno, y + 5);
+    doc.text(descLines, colX.desc, y + 5);
+    doc.text(qty.toString(), colX.qty, y + 5, { align: 'center' });
+    doc.text(`Rs. ${price.toFixed(2)}`, colX.price, y + 5, { align: 'right' });
+    doc.text(`Rs. ${subtotal.toFixed(2)}`, colX.subtotal, y + 5, { align: 'right' });
+
+    y += dynamicHeight;
+
+    // ROW DIVIDER
+    doc.setDrawColor(230);
+    doc.line(LEFT, y, RIGHT, y);
+  });
+
+  // =========================
+  // 🔥 SUMMARY
+  // =========================
+
+  y += 10;
+
+  const total = Number(saleData.totalAmount || 0).toFixed(2);
+  const summaryLeft = RIGHT - 70;
+
+  doc.setFontSize(9);
+  doc.setTextColor(...C_MUTED);
+  doc.text("Subtotal:", summaryLeft, y);
+  doc.text(`Rs. ${total}`, RIGHT, y, { align: 'right' });
+
+  y += 8;
+
+  doc.setDrawColor(...C_ACCENT);
+  doc.line(summaryLeft, y - 4, RIGHT, y - 4);
 
   doc.setFontSize(11);
-  doc.text('RECEIPT / INVOICE', pageWidth / 2, yPosition, { align: 'center' });
-  yPosition += 12;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C_ACCENT);
+  doc.text("TOTAL AMOUNT:", summaryLeft, y + 2);
 
-  // Header line
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.5);
-  doc.line(10, yPosition, pageWidth - 10, yPosition);
-  yPosition += 6;
+  doc.setTextColor(...C_MAIN);
+  doc.text(`Rs. ${total}`, RIGHT, y + 2, { align: 'right' });
 
-  // Invoice details
+  // PAYMENT BOX
+  y += 20;
+
+  doc.setFillColor(...C_BG);
+  doc.roundedRect(LEFT, y, 60, 15, 1, 1, 'F');
+
+  doc.setFontSize(7);
+  doc.setTextColor(...C_MUTED);
+  doc.text("PAYMENT METHOD", LEFT + 5, y + 6);
+
   doc.setFontSize(9);
-  doc.setFont(undefined, 'normal');
-  
-  const invoiceDate = new Date(saleData.createdAt);
-  const dateStr = invoiceDate.toLocaleDateString('en-IN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  });
-  const timeStr = invoiceDate.toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true
-  });
-
-  doc.text(`Invoice #: ${saleData._id.substring(0, 8).toUpperCase()}`, 12, yPosition);
-  doc.text(`Date: ${dateStr}`, 110, yPosition);
-  yPosition += 6;
-  doc.text(`Time: ${timeStr}`, 110, yPosition);
-  yPosition += 10;
-
-  // ============== CUSTOMER INFORMATION ==============
-  doc.setFont(undefined, 'bold');
-  doc.text('CUSTOMER DETAILS', 12, yPosition);
-  yPosition += 6;
-
-  doc.setFont(undefined, 'normal');
-  doc.text(`Name: ${saleData.customer.name}`, 12, yPosition);
-  yPosition += 5;
-  doc.text(`Mobile: ${saleData.customer.mobile}`, 12, yPosition);
-  yPosition += 5;
-
-  if (saleData.customer.address) {
-    doc.text(`Address: ${saleData.customer.address.substring(0, 40)}`, 12, yPosition);
-    yPosition += 5;
-  }
-
-  if (saleData.customer.email) {
-    doc.text(`Email: ${saleData.customer.email}`, 12, yPosition);
-    yPosition += 5;
-  }
-
-  yPosition += 3;
-  doc.line(10, yPosition, pageWidth - 10, yPosition);
-  yPosition += 6;
-
-  // ============== ITEMS TABLE ==============
-  doc.setFont(undefined, 'bold');
-  doc.setFontSize(9);
-  
-  // Table headers
-  const tableTop = yPosition;
-  doc.text('Item Description', 12, yPosition);
-  doc.text('Qty', 110, yPosition);
-  doc.text('Unit Price', 135, yPosition);
-  doc.text('Amount', 170, yPosition, { align: 'right' });
-  yPosition += 5;
-
-  doc.setLineWidth(0.3);
-  doc.line(10, yPosition, pageWidth - 10, yPosition);
-  yPosition += 3;
-
-  // Table items
-  doc.setFont(undefined, 'normal');
-  doc.setFontSize(8);
-
-  saleData.items.forEach((item, idx) => {
-    const itemName = item.productName.substring(0, 35);
-    const itemTotal = (item.price * item.quantity).toFixed(2);
-
-    doc.text(itemName, 12, yPosition);
-    doc.text(item.quantity.toString(), 110, yPosition);
-    doc.text(`₹${parseFloat(item.price).toFixed(2)}`, 135, yPosition);
-    doc.text(`₹${itemTotal}`, 170, yPosition, { align: 'right' });
-
-    yPosition += 5;
-
-    // Page break if needed
-    if (yPosition > pageHeight - 50) {
-      doc.addPage();
-      yPosition = 20;
-    }
-  });
-
-  yPosition += 2;
-  doc.setLineWidth(0.5);
-  doc.line(10, yPosition, pageWidth - 10, yPosition);
-  yPosition += 6;
-
-  // ============== AMOUNT SUMMARY ==============
-  doc.setFont(undefined, 'normal');
-  doc.setFontSize(9);
-
-  // Subtotal
-  doc.text('Subtotal:', 110, yPosition);
-  doc.text(`₹${parseFloat(saleData.totalAmount).toFixed(2)}`, 170, yPosition, { align: 'right' });
-  yPosition += 5;
-
-  // Total
-  doc.setFont(undefined, 'bold');
-  doc.setFontSize(11);
-  doc.text('TOTAL AMOUNT:', 110, yPosition);
-  doc.text(`₹${parseFloat(saleData.totalAmount).toFixed(2)}`, 170, yPosition, { align: 'right' });
-  yPosition += 8;
-
-  // ============== PAYMENT DETAILS ==============
-  doc.setFont(undefined, 'normal');
-  doc.setFontSize(9);
-  doc.setLineWidth(0.3);
-  doc.line(10, yPosition, pageWidth - 10, yPosition);
-  yPosition += 5;
-
-  doc.text(`Payment Method: ${saleData.paymentMethod.toUpperCase()}`, 12, yPosition);
-  yPosition += 5;
-
-  doc.text('Amount Received:', 12, yPosition);
-  doc.text(`₹${parseFloat(saleData.paidAmount).toFixed(2)}`, 170, yPosition, { align: 'right' });
-  yPosition += 6;
-
-  // Credit or Change
-  doc.setFont(undefined, 'bold');
-  if (saleData.isCredit && saleData.creditAmount > 0) {
-    doc.text('CUSTOMER CREDIT/DUE:', 12, yPosition);
-    doc.setTextColor(220, 53, 69); // Red color for credit
-    doc.text(`₹${parseFloat(saleData.creditAmount).toFixed(2)}`, 170, yPosition, { align: 'right' });
-    doc.setTextColor(0, 0, 0); // Reset to black
-  } else {
-    doc.text('CHANGE RETURNED:', 12, yPosition);
-    doc.setTextColor(40, 167, 69); // Green color for change
-    const change = (saleData.paidAmount - saleData.totalAmount).toFixed(2);
-    doc.text(`₹${change}`, 170, yPosition, { align: 'right' });
-    doc.setTextColor(0, 0, 0); // Reset to black
-  }
-  yPosition += 8;
-
-  // ============== FOOTER ==============
-  yPosition = pageHeight - 15;
-  doc.setFont(undefined, 'normal');
-  doc.setFontSize(9);
-  doc.text('Thank you for your purchase!', pageWidth / 2, yPosition, { align: 'center' });
-  yPosition += 5;
-  doc.setFontSize(8);
-  doc.text('Please visit again', pageWidth / 2, yPosition, { align: 'center' });
+  doc.setTextColor(...C_MAIN);
+  doc.setFont("helvetica", "bold");
+  doc.text((saleData.paymentMethod || "CASH").toUpperCase(), LEFT + 5, y + 11);
 
   return doc;
 };
 
 export const printInvoice = async (saleData, shopName) => {
   const doc = await generateInvoicePDF(saleData, shopName);
-  
+
   // Create a blob and open in new window for better printing
   const pdfBlob = doc.output('blob');
   const pdfUrl = URL.createObjectURL(pdfBlob);
   const printWindow = window.open(pdfUrl, '_blank');
-  
+
   // Wait for window to load then print
   printWindow.onload = () => {
     setTimeout(() => {
