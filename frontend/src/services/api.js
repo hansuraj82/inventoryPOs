@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE =  'https://inventorypos-xxeq.onrender.com/api';
+const API_BASE =  'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -52,6 +52,7 @@ export const productAPI = {
 // Sale API calls
 export const saleAPI = {
   getAll: () => api.get('/sales'),
+  search: (query) => api.get('/sales/search', { params: { q: query } }),
   getById: (id) => api.get(`/sales/${id}`),
   create: (data) => api.post('/sales', data),
   getTodayStats: () => api.get('/sales/stats/today'),

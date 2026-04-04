@@ -6,9 +6,11 @@ import { productAPI, saleAPI } from '../services/api';
 import { useCartStore, useAuthStore } from '../store/store';
 import { formatCurrency, debounce } from '../utils/helpers';
 import { generateInvoicePDF, downloadInvoice, printInvoice } from '../utils/invoice';
+import { POSProductGridSkeleton } from '../components/Skeletons';
 
 export default function POS() {
   const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
@@ -17,6 +19,8 @@ export default function POS() {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paidAmount, setPaidAmount] = useState('');
   const [lastSale, setLastSale] = useState(null);
+  const [quickAddQuantity, setQuickAddQuantity] = useState('1');
+  const [selectedProductForAdd, setSelectedProductForAdd] = useState(null);
   
   // Customer Information
   const [customerInfo, setCustomerInfo] = useState({
@@ -44,10 +48,13 @@ export default function POS() {
 
   const fetchProducts = async () => {
     try {
+      setIsLoading(true);
       const response = await productAPI.getAll();
       setProducts(response.data.data);
     } catch (error) {
       toast.error('Failed to fetch products');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -131,8 +138,27 @@ export default function POS() {
       toast.error('Product out of stock');
       return;
     }
-    addItem(product);
-    toast.success(`${product.name} added to cart`);
+    setSelectedProductForAdd(product);
+    setQuickAddQuantity('1');
+  };
+
+  const handleConfirmAdd = () => {
+    if (!selectedProductForAdd) return;
+    
+    const qtyToAdd = parseInt(quickAddQuantity) || 1;
+    if (qtyToAdd <= 0) {
+      toast.error('Please enter a valid quantity');
+      return;
+    }
+
+    // Add item multiple times based on quantity
+    for (let i = 0; i < qtyToAdd; i++) {
+      addItem(selectedProductForAdd);
+    }
+
+    toast.success(`${selectedProductForAdd.name} x${qtyToAdd} added to cart`);
+    setSelectedProductForAdd(null);
+    setQuickAddQuantity('1');
   };
 
   const calculateChange = () => {
@@ -356,53 +382,55 @@ export default function POS() {
 
   return (
     <Layout>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
         {/* Product Search and List */}
         <div className="lg:col-span-2">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Select Products</h2>
+          <h2 className="text-lg md:text-2xl font-bold text-gray-900 mb-4 md:mb-6">Select Products</h2>
 
-          <div className="card mb-6">
-            <div className="flex gap-2">
+          <div className="card mb-4 md:mb-6">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
-                placeholder="Search products by name or barcode..."
+                placeholder="Search products..."
                 value={searchQuery}
                 onChange={handleSearchChange}
-                className="input-field flex-1"
+                className="input-field flex-1 text-sm"
               />
               <button
                 onClick={() => setShowBarcodeScanner(true)}
-                className="btn-secondary"
+                className="btn-secondary whitespace-nowrap text-sm"
               >
                 📱 Scan
               </button>
             </div>
           </div>
 
-          {products.length === 0 ? (
-            <div className="card text-center py-8 text-gray-500">
+          {isLoading ? (
+            <POSProductGridSkeleton />
+          ) : products.length === 0 ? (
+            <div className="card text-center py-8 text-gray-500 text-sm">
               No products available. Add some products first.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
               {products.map((product) => (
                 <div key={product._id} className="card hover:shadow-lg transition">
-                  <h3 className="font-semibold text-gray-900 mb-2">{product.name}</h3>
-                  <p className="text-sm text-gray-600 mb-3">
+                  <h3 className="font-semibold text-gray-900 text-sm md:text-base mb-2 truncate">{product.name}</h3>
+                  <p className="text-xs text-gray-600 mb-3 truncate">
                     {product.category} {product.barcode && `| ${product.barcode}`}
                   </p>
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-2xl font-bold text-indigo-600">
+                  <div className="flex justify-between items-center mb-4 gap-2">
+                    <span className="text-xl md:text-2xl font-bold text-indigo-600">
                       {formatCurrency(product.price)}
                     </span>
-                    <span className={`text-sm font-medium ${product.quantity > 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'} px-3 py-1 rounded`}>
-                      Stock: {product.quantity}
+                    <span className={`text-xs font-medium whitespace-nowrap ${product.quantity > 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'} px-2 py-1 rounded`}>
+                      {product.quantity}
                     </span>
                   </div>
                   <button
                     onClick={() => handleAddToCart(product)}
                     disabled={product.quantity <= 0}
-                    className="w-full btn-primary disabled:opacity-50"
+                    className="w-full btn-primary disabled:opacity-50 text-xs md:text-sm py-2"
                   >
                     Add to Cart
                   </button>
@@ -412,21 +440,21 @@ export default function POS() {
           )}
         </div>
 
-        {/* Cart and Payment */}
+        {/* Cart and Payment - Sticky on Desktop */}
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Invoice</h2>
+          <h2 className="text-lg md:text-2xl font-bold text-gray-900 mb-4 md:mb-6">Invoice</h2>
 
-          <div className="card sticky top-24">
+          <div className="card sticky top-24 md:top-20 max-h-[calc(100vh-120px)] overflow-y-auto">
             {/* Customer Information */}
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
-              <h3 className="font-bold text-gray-900 mb-3 text-blue-900">Customer Details</h3>
-              <div className="space-y-3">
+            <div className="mb-4 md:mb-6 p-3 md:p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
+              <h3 className="font-bold text-gray-900 mb-3 text-sm md:text-base text-blue-900">Customer Details</h3>
+              <div className="space-y-2">
                 <input
                   type="text"
                   placeholder="Customer Name *"
                   value={customerInfo.name}
                   onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
-                  className="input-field text-sm"
+                  className="input-field text-xs md:text-sm py-2"
                   required
                 />
                 <input
@@ -434,7 +462,7 @@ export default function POS() {
                   placeholder="Mobile Number *"
                   value={customerInfo.mobile}
                   onChange={(e) => setCustomerInfo({ ...customerInfo, mobile: e.target.value })}
-                  className="input-field text-sm"
+                  className="input-field text-xs md:text-sm py-2"
                   required
                 />
                 <input
@@ -442,67 +470,85 @@ export default function POS() {
                   placeholder="Address (Optional)"
                   value={customerInfo.address}
                   onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
-                  className="input-field text-sm"
+                  className="input-field text-xs md:text-sm py-2"
                 />
                 <input
                   type="email"
                   placeholder="Email (Optional)"
                   value={customerInfo.email}
                   onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
-                  className="input-field text-sm"
+                  className="input-field text-xs md:text-sm py-2"
                 />
               </div>
             </div>
 
             {/* Cart Items */}
             {cartItems.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">Cart is empty</p>
+              <p className="text-gray-500 text-center py-6 md:py-8 text-xs md:text-sm">Cart is empty</p>
             ) : (
               <>
-                <div className="space-y-3 mb-6 max-h-80 overflow-y-auto">
+                <div className="space-y-2 mb-4 md:mb-6 max-h-48 overflow-y-auto">
                   {cartItems.map((item) => (
-                    <div key={item._id} className="flex justify-between items-center p-3 bg-gray-50 rounded border border-gray-200">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900 text-sm">{item.name}</p>
-                        <p className="text-xs text-gray-600">
-                          {formatCurrency(item.price)} x {item.quantity}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => updateQuantity(item._id, item.quantity - 1)}
-                          className="px-2 py-1 bg-red-100 text-red-600 text-xs rounded hover:bg-red-200"
-                        >
-                          −
-                        </button>
-                        <span className="w-6 text-center text-xs font-semibold">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item._id, item.quantity + 1)}
-                          className="px-2 py-1 bg-green-100 text-green-600 text-xs rounded hover:bg-green-200"
-                        >
-                          +
-                        </button>
+                    <div key={item._id} className="flex flex-col p-2 md:p-3 bg-gray-50 rounded border border-gray-200 gap-2">
+                      <div className="flex justify-between items-start gap-1">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 text-xs md:text-sm truncate">{item.name}</p>
+                          <p className="text-xs text-gray-600">
+                            {formatCurrency(item.price)}
+                          </p>
+                        </div>
                         <button
                           onClick={() => removeItem(item._id)}
-                          className="px-2 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400 ml-1"
+                          className="px-1.5 py-0.5 bg-red-500 text-white text-xs rounded hover:bg-red-600 flex-shrink-0 font-semibold"
                         >
                           ✕
                         </button>
+                      </div>
+                      
+                      {/* Quantity Control */}
+                      <div className="flex items-center gap-2 bg-white rounded border border-gray-300 p-1.5">
+                        <button
+                          onClick={() => updateQuantity(item._id, Math.max(1, item.quantity - 1))}
+                          className="px-2 py-1 bg-red-100 text-red-600 text-xs rounded hover:bg-red-200 font-bold"
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const newQty = parseInt(e.target.value) || 0;
+                            if (newQty > 0) {
+                              updateQuantity(item._id, newQty);
+                            }
+                          }}
+                          className="w-10 text-center text-xs md:text-sm font-bold border border-gray-300 rounded py-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          min="1"
+                        />
+                        <button
+                          onClick={() => updateQuantity(item._id, item.quantity + 1)}
+                          className="px-2 py-1 bg-green-100 text-green-600 text-xs rounded hover:bg-green-200 font-bold"
+                        >
+                          +
+                        </button>
+                        <span className="text-xs md:text-sm font-semibold text-gray-700 ml-auto flex-shrink-0">
+                          {formatCurrency(item.price * item.quantity)}
+                        </span>
                       </div>
                     </div>
                   ))}
                 </div>
 
                 {/* Payment Section */}
-                <div className="border-t pt-4 space-y-4">
+                <div className="border-t pt-3 md:pt-4 space-y-3 md:space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                       Payment Method
                     </label>
                     <select
                       value={paymentMethod}
                       onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="input-field text-sm"
+                      className="input-field text-xs md:text-sm py-2"
                     >
                       <option value="cash">💵 Cash</option>
                       <option value="card">💳 Card</option>
@@ -511,12 +557,12 @@ export default function POS() {
                   </div>
 
                   {/* Amount Summary */}
-                  <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-4 rounded-lg border-2 border-indigo-200">
-                    <div className="flex justify-between mb-2 text-gray-700">
+                  <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-3 md:p-4 rounded-lg border-2 border-indigo-200">
+                    <div className="flex justify-between mb-2 text-xs md:text-sm text-gray-700">
                       <span>Total:</span>
                       <span className="font-semibold">{formatCurrency(totalAmount)}</span>
                     </div>
-                    <div className="border-t border-indigo-200 pt-2 flex justify-between text-lg font-bold text-indigo-700">
+                    <div className="border-t border-indigo-200 pt-2 flex justify-between text-sm md:text-base font-bold text-indigo-700">
                       <span>Amount Due:</span>
                       <span>{formatCurrency(totalAmount)}</span>
                     </div>
@@ -524,19 +570,19 @@ export default function POS() {
 
                   {/* Payment Amount */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                       Amount Received
                     </label>
                     <input
                       type="number"
                       value={paidAmount}
                       onChange={(e) => setPaidAmount(e.target.value)}
-                      className="input-field mb-2"
+                      className="input-field mb-2 text-xs md:text-sm py-2"
                       placeholder="Enter amount"
                       step="0.01"
                     />
                     {paidAmount && (
-                      <div className="text-sm font-semibold">
+                      <div className="text-xs md:text-sm font-semibold">
                         {calculateChange() >= 0 ? (
                           <span className="text-green-600 bg-green-50 p-2 rounded block text-center">
                             Change: {formatCurrency(calculateChange())}
@@ -554,14 +600,14 @@ export default function POS() {
                   <button
                     onClick={handleCompletePayment}
                     disabled={isProcessing || cartItems.length === 0}
-                    className="w-full btn-primary text-lg py-3 disabled:opacity-50 font-bold"
+                    className="w-full btn-primary text-sm md:text-base py-2 md:py-3 disabled:opacity-50 font-bold"
                   >
                     {isProcessing ? 'Processing...' : '💰 Complete Payment'}
                   </button>
 
                   <button
                     onClick={clearCart}
-                    className="w-full btn-secondary text-sm"
+                    className="w-full btn-secondary text-xs md:text-sm py-2"
                   >
                     Clear Cart
                   </button>
@@ -672,6 +718,81 @@ export default function POS() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Add Quantity Modal */}
+      {selectedProductForAdd && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full">
+            <div className="bg-indigo-600 text-white px-4 md:px-6 py-4 flex justify-between items-center">
+              <h2 className="text-lg md:text-xl font-bold">Add to Cart</h2>
+              <button
+                onClick={() => setSelectedProductForAdd(null)}
+                className="text-white hover:bg-indigo-700 rounded-full p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 md:p-6">
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-2">{selectedProductForAdd.name}</h3>
+                <p className="text-sm text-gray-600 mb-2">Price: <span className="font-semibold text-indigo-600">{formatCurrency(selectedProductForAdd.price)}</span></p>
+                <p className="text-sm text-gray-600">Available: <span className="font-semibold text-green-600">{selectedProductForAdd.quantity}</span></p>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Quantity to Add
+                </label>
+                <div className="flex items-center justify-center gap-4">
+                  <button
+                    onClick={() => setQuickAddQuantity(Math.max(1, parseInt(quickAddQuantity) - 1).toString())}
+                    className="px-4 py-2 bg-red-100 text-red-600 text-lg rounded hover:bg-red-200 font-bold"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    value={quickAddQuantity}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '' || /^\d+$/.test(val)) {
+                        setQuickAddQuantity(val);
+                      }
+                    }}
+                    className="w-20 text-center text-2xl font-bold border-2 border-indigo-300 rounded py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    min="1"
+                  />
+                  <button
+                    onClick={() => setQuickAddQuantity((parseInt(quickAddQuantity) + 1).toString())}
+                    className="px-4 py-2 bg-green-100 text-green-600 text-lg rounded hover:bg-green-200 font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+                <p className="text-center text-sm text-gray-600 mt-3">
+                  Total: <span className="font-bold text-lg text-indigo-600">{formatCurrency(selectedProductForAdd.price * parseInt(quickAddQuantity || 1))}</span>
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleConfirmAdd}
+                  className="btn-primary flex-1 py-3 text-base font-bold"
+                >
+                  ✓ Add to Cart
+                </button>
+                <button
+                  onClick={() => setSelectedProductForAdd(null)}
+                  className="btn-secondary flex-1 py-3"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

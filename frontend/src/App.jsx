@@ -1,14 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/store';
 import PrivateRoute from './components/PrivateRoute';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Products from './pages/Products';
-import POS from './pages/POS';
-import Sales from './pages/Sales';
+import FullPageLoader from './components/FullPageLoader';
+
+// Lazy load all pages
+const Login = React.lazy(() => import('./pages/Login'));
+const Register = React.lazy(() => import('./pages/Register'));
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const Products = React.lazy(() => import('./pages/Products'));
+const POS = React.lazy(() => import('./pages/POS'));
+const Sales = React.lazy(() => import('./pages/Sales'));
 
 function App() {
   const { token } = useAuthStore();
@@ -29,14 +32,30 @@ function App() {
       />
 
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route
+          path="/login"
+          element={
+            <Suspense fallback={<FullPageLoader />}>
+              <Login />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <Suspense fallback={<FullPageLoader />}>
+              <Register />
+            </Suspense>
+          }
+        />
 
         <Route
           path="/dashboard"
           element={
             <PrivateRoute>
-              <Dashboard />
+              <Suspense fallback={<FullPageLoader />}>
+                <Dashboard />
+              </Suspense>
             </PrivateRoute>
           }
         />
@@ -45,7 +64,9 @@ function App() {
           path="/products"
           element={
             <PrivateRoute>
-              <Products />
+              <Suspense fallback={<FullPageLoader />}>
+                <Products />
+              </Suspense>
             </PrivateRoute>
           }
         />
@@ -54,7 +75,9 @@ function App() {
           path="/pos"
           element={
             <PrivateRoute>
-              <POS />
+              <Suspense fallback={<FullPageLoader />}>
+                <POS />
+              </Suspense>
             </PrivateRoute>
           }
         />
@@ -63,7 +86,9 @@ function App() {
           path="/sales"
           element={
             <PrivateRoute>
-              <Sales />
+              <Suspense fallback={<FullPageLoader />}>
+                <Sales />
+              </Suspense>
             </PrivateRoute>
           }
         />

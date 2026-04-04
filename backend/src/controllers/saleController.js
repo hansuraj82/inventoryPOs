@@ -25,20 +25,36 @@ exports.getSales = async (req, res, next) => {
 // @access  Private
 exports.searchSales = async (req, res, next) => {
   try {
-    const { q } = req.query;
-    if (!q) {
-      return res.status(400).json({ success: false, message: 'Please provide a search query' });
+    let { q } = req.query;
+    
+    if (!q || typeof q !== 'string') {
+      return res.status(400).json({ success: false, message: 'Please provide a valid search query' });
     }
 
-    const regex = new RegExp(q, 'i');
+    // Trim and limit search query
+    q = q.trim().substring(0, 100);
+
+    if (q.length === 0) {
+      return res.status(400).json({ success: false, message: 'Search query cannot be empty' });
+    }
+
+    // Escape special regex characters to prevent regex injection
+    const escapedQuery = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Build query with proper regex pattern
+    const searchPattern = new RegExp(escapedQuery, 'i');
+
     const sales = await Sale.find({
       user: req.user.id,
       $or: [
-        { invoiceNumber: regex },
-        { customerName: regex },
-        { 'customer.mobile': regex }
+        { invoiceNumber: searchPattern },
+        { customerName: searchPattern },
+        { 'customer.mobile': searchPattern }
       ]
-    }).populate('items.product', 'name barcode').sort('-createdAt');
+    })
+      .populate('items.product', 'name barcode')
+      .sort('-createdAt')
+      .limit(100); // Limit results to prevent excessive data
 
     res.status(200).json({
       success: true,
@@ -46,6 +62,13 @@ exports.searchSales = async (req, res, next) => {
       data: sales
     });
   } catch (error) {
+    // Handle MongoDB regex errors gracefully
+    if (error.name === 'MongoError' || error.message.includes('regex')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid search query. Please try with simpler text.'
+      });
+    }
     next(error);
   }
 };

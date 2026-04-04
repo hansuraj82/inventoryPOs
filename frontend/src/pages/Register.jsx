@@ -54,14 +54,14 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center px-4">
-      <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">InventoryPOS</h1>
-        <p className="text-gray-600 text-center mb-8">Create your account</p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center px-3 md:px-4 py-8">
+      <div className="bg-white rounded-lg shadow-2xl p-6 md:p-8 max-w-md w-full">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1 md:mb-2 text-center">InventoryPOS</h1>
+        <p className="text-gray-600 text-sm md:text-base text-center mb-6 md:mb-8">Create your account</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
               Full Name
             </label>
             <input
@@ -69,13 +69,13 @@ export default function Register() {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className="input-field"
+              className="input-field text-xs md:text-sm"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
               Email
             </label>
             <input
@@ -83,13 +83,13 @@ export default function Register() {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className="input-field"
+              className="input-field text-xs md:text-sm"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
               Phone Number
             </label>
             <input
@@ -98,13 +98,13 @@ export default function Register() {
               value={formData.phone}
               onChange={handleChange}
               placeholder="10 digit number"
-              className="input-field"
+              className="input-field text-xs md:text-sm"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
               Shop Name
             </label>
             <input
@@ -112,13 +112,13 @@ export default function Register() {
               name="shopName"
               value={formData.shopName}
               onChange={handleChange}
-              className="input-field"
+              className="input-field text-xs md:text-sm"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
               Password
             </label>
             <input
@@ -126,13 +126,13 @@ export default function Register() {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              className="input-field"
+              className="input-field text-xs md:text-sm"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
               Confirm Password
             </label>
             <input
@@ -140,7 +140,7 @@ export default function Register() {
               name="passwordConfirm"
               value={formData.passwordConfirm}
               onChange={handleChange}
-              className="input-field"
+              className="input-field text-xs md:text-sm"
               required
             />
           </div>
@@ -148,13 +148,13 @@ export default function Register() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full btn-primary disabled:opacity-50"
+            className="w-full btn-primary disabled:opacity-50 text-sm md:text-base py-2 md:py-3 mt-2"
           >
             {isLoading ? 'Creating Account...' : 'Register'}
           </button>
         </form>
 
-        <p className="text-center text-gray-600 mt-6">
+        <p className="text-center text-gray-600 text-xs md:text-sm mt-6">
           Already have an account?{' '}
           <Link to="/login" className="text-indigo-600 hover:text-indigo-700 font-semibold">
             Login
