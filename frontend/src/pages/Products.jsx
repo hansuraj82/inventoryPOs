@@ -109,18 +109,27 @@ export default function Products() {
     e.preventDefault();
 
     if (!formData.name || !formData.costPrice || !formData.sellingPrice) {
-      toast.error('Please fill in required fields');
+      toast.error('Please fill in all required fields: name, cost price, and selling price');
       return;
     }
 
     try {
       setIsLoading(true);
+      // Convert string values to numbers
+      const dataToSend = {
+        ...formData,
+        costPrice: parseFloat(formData.costPrice),
+        sellingPrice: parseFloat(formData.sellingPrice),
+        quantity: formData.quantity ? parseFloat(formData.quantity) : 0,
+        minStock: formData.minStock ? parseFloat(formData.minStock) : 5
+      };
+
       if (editingId) {
-        await productAPI.update(editingId, formData);
+        await productAPI.update(editingId, dataToSend);
         toast.success('Product updated successfully');
         setEditingId(null);
       } else {
-        await productAPI.create(formData);
+        await productAPI.create(dataToSend);
         toast.success('Product added successfully');
       }
 

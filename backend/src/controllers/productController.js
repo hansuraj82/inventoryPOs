@@ -109,11 +109,18 @@ exports.createProduct = async (req, res, next) => {
   try {
     const { name, sellingPrice, costPrice, quantity, barcode, category, sku, description, minStock } = req.body;
 
-    // Validation
-    if (!name || !sellingPrice) {
+    // Validation - Check required fields
+    if (!name || name.trim() === '') {
       return res.status(400).json({
         success: false,
-        message: 'Please provide name and selling price'
+        message: 'Please provide product name'
+      });
+    }
+
+    if (!sellingPrice || sellingPrice <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid selling price greater than 0'
       });
     }
 
@@ -126,7 +133,7 @@ exports.createProduct = async (req, res, next) => {
     }
 
     // Check if barcode already exists
-    if (barcode) {
+    if (barcode && barcode.trim() !== '') {
       const existingProduct = await Product.findOne({ barcode });
       if (existingProduct) {
         return res.status(400).json({
@@ -138,16 +145,16 @@ exports.createProduct = async (req, res, next) => {
 
     const product = await Product.create({
       user: req.user.id,
-      name,
-      price: sellingPrice,
-      sellingPrice,
-      costPrice: costPrice || 0,
-      quantity: quantity || 0,
-      barcode,
+      name: name.trim(),
+      price: Number(sellingPrice),
+      sellingPrice: Number(sellingPrice),
+      costPrice: costPrice ? Number(costPrice) : 0,
+      quantity: quantity ? Number(quantity) : 0,
+      barcode: barcode || null,
       category: category || 'General',
       sku,
       description,
-      minStock: minStock || 5
+      minStock: minStock ? Number(minStock) : 5
     });
 
     res.status(201).json({
@@ -188,8 +195,8 @@ exports.updateProduct = async (req, res, next) => {
     }
 
     // Validate that costPrice <= sellingPrice
-    const sellingPrice = req.body.sellingPrice || product.sellingPrice;
-    const costPrice = req.body.costPrice || product.costPrice;
+    const sellingPrice = req.body.sellingPrice ? Number(req.body.sellingPrice) : product.sellingPrice;
+    const costPrice = req.body.costPrice ? Number(req.body.costPrice) : product.costPrice;
     
     if (costPrice && costPrice > sellingPrice) {
       return res.status(400).json({
@@ -198,10 +205,25 @@ exports.updateProduct = async (req, res, next) => {
       });
     }
 
-    // Update fields - sync price with sellingPrice
-    const updateData = { ...req.body, updatedAt: Date.now() };
+    // Update fields - sync price with sellingPrice and convert numbers
+    const updateData = { 
+      ...req.body,
+      updatedAt: Date.now()
+    };
+    
+    // Convert numeric fields to numbers
     if (req.body.sellingPrice) {
-      updateData.price = req.body.sellingPrice;
+      updateData.price = Number(req.body.sellingPrice);
+      updateData.sellingPrice = Number(req.body.sellingPrice);
+    }
+    if (req.body.costPrice) {
+      updateData.costPrice = Number(req.body.costPrice);
+    }
+    if (req.body.quantity) {
+      updateData.quantity = Number(req.body.quantity);
+    }
+    if (req.body.minStock) {
+      updateData.minStock = Number(req.body.minStock);
     }
 
     product = await Product.findByIdAndUpdate(

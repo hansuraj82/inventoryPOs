@@ -22,7 +22,7 @@ exports.errorHandler = (err, req, res, next) => {
     const messages = Object.values(err.errors).map(val => val.message);
     return res.status(400).json({
       success: false,
-      message: messages
+      message: messages.join(', ')
     });
   }
 
