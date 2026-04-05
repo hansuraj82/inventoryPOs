@@ -134,7 +134,7 @@ exports.createProduct = async (req, res, next) => {
 
     // Check if barcode already exists
     if (barcode && barcode.trim() !== '') {
-      const existingProduct = await Product.findOne({ barcode });
+      const existingProduct = await Product.findOne({ barcode, user: req.user.id });
       if (existingProduct) {
         return res.status(400).json({
           success: false,
@@ -146,15 +146,15 @@ exports.createProduct = async (req, res, next) => {
     const product = await Product.create({
       user: req.user.id,
       name: name.trim(),
-      price: Number(sellingPrice),
-      sellingPrice: Number(sellingPrice),
-      costPrice: costPrice ? Number(costPrice) : 0,
-      quantity: quantity ? Number(quantity) : 0,
+      price: parseFloat(sellingPrice) || 0,
+      sellingPrice: parseFloat(sellingPrice) || 0,
+      costPrice: parseFloat(costPrice) || 0,
+      quantity: parseInt(quantity, 10) || 0,
       barcode: barcode || null,
       category: category || 'General',
       sku,
       description,
-      minStock: minStock ? Number(minStock) : 5
+      minStock: parseInt(minStock, 10) || 5
     });
 
     res.status(201).json({
@@ -162,6 +162,8 @@ exports.createProduct = async (req, res, next) => {
       data: product
     });
   } catch (error) {
+    console.log(error);
+    
     next(error);
   }
 };
