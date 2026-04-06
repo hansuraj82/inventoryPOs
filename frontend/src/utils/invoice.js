@@ -63,7 +63,7 @@ export const generateInvoicePDF = async (saleData, shopName) => {
   doc.setTextColor(...C_MAIN);
 
   doc.text(saleData.customer?.name || "Customer", LEFT + 5, y + 13);
-  doc.text(invoiceId, RIGHT, y + 7, { align: 'right' });
+  doc.text(saleData.invoiceNumber, RIGHT, y + 7, { align: 'right' });
   doc.text(date, RIGHT, y + 17, { align: 'right' });
 
   doc.setFontSize(8);

@@ -105,7 +105,8 @@ exports.getSale = async (req, res, next) => {
 exports.createSale = async (req, res, next) => {
   try {
     const { items, totalAmount, paymentMethod, paidAmount, notes, customer } = req.body;
-
+    console.log(req.body);
+    
     // Validation
     if (!items || items.length === 0) {
       return res.status(400).json({
@@ -188,7 +189,7 @@ exports.createSale = async (req, res, next) => {
 
     const sale = await Sale.create({
       user: req.user.id,
-      invoiceNumber: '', // Will update after getting _id
+      invoiceNumber: `${req.userId}-${Math.random()}`, // Will update after getting _id
       customerName: customer.name,
       customer: {
         name: customer.name,
@@ -208,7 +209,7 @@ exports.createSale = async (req, res, next) => {
     });
 
     // Generate Invoice Number using shop name and sale _id
-    const invoiceNumber = `${user.shopName.replaceAll(' ', '').substring(0, 4).toUpperCase()}${sale._id.toString().substring(0, 4).toUpperCase()}`;
+    const invoiceNumber = `${user.shopName.replaceAll(' ', '').substring(0, 4).toUpperCase()}${sale._id.toString().substring(6, 10).toUpperCase()}`;
     
     // Update sale with invoice number
     sale.invoiceNumber = invoiceNumber;

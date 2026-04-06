@@ -201,7 +201,6 @@ export default function POS() {
         paymentMethod,
         paidAmount: paid
       };
-
       const response = await saleAPI.create(saleData);
       const sale = response.data.data;
       
@@ -274,7 +273,7 @@ export default function POS() {
               {/* Transaction Date and Details */}
               <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
                 <div>
-                  <p className="text-gray-600">Invoice #: <span className="font-semibold text-gray-900">{lastSale._id.substring(0, 8).toUpperCase()}</span></p>
+                  <p className="text-gray-600">Invoice #: <span className="font-semibold text-gray-900">{lastSale.invoiceNumber}</span></p>
                   <p className="text-gray-600">Date: <span className="font-semibold text-gray-900">{new Date(lastSale.createdAt).toLocaleDateString('en-IN')}</span></p>
                   <p className="text-gray-600">Time: <span className="font-semibold text-gray-900">{new Date(lastSale.createdAt).toLocaleTimeString('en-IN')}</span></p>
                 </div>
