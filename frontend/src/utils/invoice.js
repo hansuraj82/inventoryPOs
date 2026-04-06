@@ -50,10 +50,6 @@ export const generateInvoicePDF = async (saleData, shopName) => {
   doc.text("INVOICE NO", RIGHT - 40, y + 7);
   doc.text("DATE", RIGHT - 40, y + 17);
 
-  const invoiceId = saleData?._id
-    ? `${shopName.substring(0, 4).replaceAll(" ", "").toUpperCase()}${saleData._id.substring(0, 4).toUpperCase()}`
-    : "N/A";
-
   const date = saleData.createdAt
     ? new Date(saleData.createdAt).toLocaleDateString('en-IN')
     : "N/A";
@@ -63,7 +59,7 @@ export const generateInvoicePDF = async (saleData, shopName) => {
   doc.setTextColor(...C_MAIN);
 
   doc.text(saleData.customer?.name || "Customer", LEFT + 5, y + 13);
-  doc.text(saleData.invoiceNumber, RIGHT, y + 7, { align: 'right' });
+  doc.text(saleData.invoiceNumber || "N/A", RIGHT, y + 7, { align: 'right' });
   doc.text(date, RIGHT, y + 17, { align: 'right' });
 
   doc.setFontSize(8);
