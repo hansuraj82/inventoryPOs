@@ -16,6 +16,12 @@ export default function Products() {
   const [scannedBarcode, setScannedBarcode] = useState('');
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, product: null });
   const barcodeInputRef = useRef(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 10;
   const [formData, setFormData] = useState({
     name: '',
     costPrice: '',
@@ -23,6 +29,8 @@ export default function Products() {
     quantity: '',
     barcode: '',
     category: 'General',
+    sku: '',
+    description: '',
     minStock: '5'
   });
 
@@ -30,11 +38,21 @@ export default function Products() {
     fetchProducts();
   }, []);
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (page = 1, isLoadMore = false) => {
     try {
       setIsLoading(true);
-      const response = await productAPI.getAll();
-      setProducts(response.data.data);
+      const response = await productAPI.getAll(page, pageSize);
+      const paginatedProducts = response.data.data || [];
+      
+      if (isLoadMore) {
+        setProducts(prev => [...prev, ...paginatedProducts]);
+      } else {
+        setProducts(paginatedProducts);
+      }
+      
+      setCurrentPage(page);
+      setTotalCount(response.data.totalCount || 0);
+      setHasMore(page < response.data.totalPages);
     } catch (error) {
       toast.error('Failed to fetch products');
     } finally {
@@ -44,15 +62,24 @@ export default function Products() {
 
   const handleSearch = debounce(async (query) => {
     if (!query) {
-      fetchProducts();
+      setCurrentPage(1);
+      setHasMore(true);
+      fetchProducts(1);
       return;
     }
 
     try {
-      const response = await productAPI.search(query);
-      setProducts(response.data.data);
+      setIsLoading(true);
+      const response = await productAPI.search(query, 1, pageSize);
+      const searchResults = response.data.data || [];
+      setProducts(searchResults);
+      setCurrentPage(1);
+      setTotalCount(response.data.totalCount || 0);
+      setHasMore(1 < response.data.totalPages);
     } catch (error) {
       toast.error('Search failed');
+    } finally {
+      setIsLoading(false);
     }
   }, 500);
 
@@ -78,6 +105,8 @@ export default function Products() {
           quantity: product.quantity.toString(),
           barcode: product.barcode || '',
           category: product.category || 'General',
+          sku: product.sku || '',
+          description: product.description || '',
           minStock: product.minStock?.toString() || '5'
         });
         setEditingId(product._id);
@@ -140,10 +169,14 @@ export default function Products() {
         quantity: '',
         barcode: '',
         category: 'General',
+        sku: '',
+        description: '',
         minStock: '5'
       });
       setShowForm(false);
-      fetchProducts();
+      setCurrentPage(1);
+      setHasMore(true);
+      fetchProducts(1);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to save product');
     } finally {
@@ -178,7 +211,9 @@ export default function Products() {
       await productAPI.delete(deleteModal.product._id);
       toast.success('Product deleted successfully');
       setDeleteModal({ isOpen: false, product: null });
-      fetchProducts();
+      setCurrentPage(1);
+      setHasMore(true);
+      fetchProducts(1);
     } catch (error) {
       toast.error('Failed to delete product');
     } finally {
@@ -199,6 +234,10 @@ export default function Products() {
       category: 'General',
       minStock: '5'
     });
+  };
+
+  const handleLoadMore = () => {
+    fetchProducts(currentPage + 1, true);
   };
 
   return (
@@ -340,6 +379,34 @@ export default function Products() {
               />
             </div>
 
+            <div>
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
+                SKU
+              </label>
+              <input
+                type="text"
+                name="sku"
+                value={formData.sku}
+                onChange={handleChange}
+                placeholder="e.g., SKU123"
+                className="input-field text-xs md:text-sm"
+              />
+            </div>
+
+            <div className="col-span-1 md:col-span-2">
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
+                Description
+              </label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                placeholder="Enter product description"
+                rows="3"
+                className="input-field text-xs md:text-sm resize-none"
+              />
+            </div>
+
             <div className="col-span-1 md:col-span-2 flex flex-col md:flex-row gap-3">
               <button
                 type="submit"
@@ -475,6 +542,22 @@ export default function Products() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Pagination Info & Load More Button */}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-6 px-4 py-3 bg-gray-50 rounded-lg">
+            <p className="text-xs md:text-sm text-gray-600">
+              Showing {products.length} of {totalCount} products
+            </p>
+            {hasMore && (
+              <button
+                onClick={handleLoadMore}
+                disabled={isLoading}
+                className="btn-primary text-xs md:text-sm px-4 py-2 disabled:opacity-50 w-full sm:w-auto"
+              >
+                {isLoading ? 'Loading...' : '⬇ Load More'}
+              </button>
+            )}
           </div>
         </>
       )}

@@ -2,17 +2,30 @@ const Sale = require('../models/Sale');
 const Product = require('../models/Product');
 
 // @route   GET /api/sales
-// @desc    Get all sales for user
+// @desc    Get all sales for user with pagination
 // @access  Private
 exports.getSales = async (req, res, next) => {
   try {
-    const sales = await Sale.find({ user: req.user.id })
-      .populate('items.product', 'name barcode')
-      .sort('-createdAt');
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 15));
+    const skip = (page - 1) * limit;
+
+    const [sales, totalCount] = await Promise.all([
+      Sale.find({ user: req.user.id })
+        .populate('items.product', 'name barcode')
+        .sort('-createdAt')
+        .skip(skip)
+        .limit(limit),
+      Sale.countDocuments({ user: req.user.id })
+    ]);
 
     res.status(200).json({
       success: true,
       count: sales.length,
+      totalCount,
+      page,
+      limit,
+      totalPages: Math.ceil(totalCount / limit),
       data: sales
     });
   } catch (error) {
@@ -21,11 +34,14 @@ exports.getSales = async (req, res, next) => {
 };
 
 // @route   GET /api/sales/search
-// @desc    Search sales
+// @desc    Search sales with pagination
 // @access  Private
 exports.searchSales = async (req, res, next) => {
   try {
     let { q } = req.query;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 15));
+    const skip = (page - 1) * limit;
     
     if (!q || typeof q !== 'string') {
       return res.status(400).json({ success: false, message: 'Please provide a valid search query' });
@@ -44,21 +60,31 @@ exports.searchSales = async (req, res, next) => {
     // Build query with proper regex pattern
     const searchPattern = new RegExp(escapedQuery, 'i');
 
-    const sales = await Sale.find({
+    const searchFilter = {
       user: req.user.id,
       $or: [
         { invoiceNumber: searchPattern },
         { customerName: searchPattern },
         { 'customer.mobile': searchPattern }
       ]
-    })
-      .populate('items.product', 'name barcode')
-      .sort('-createdAt')
-      .limit(100); // Limit results to prevent excessive data
+    };
+
+    const [sales, totalCount] = await Promise.all([
+      Sale.find(searchFilter)
+        .populate('items.product', 'name barcode')
+        .sort('-createdAt')
+        .skip(skip)
+        .limit(limit),
+      Sale.countDocuments(searchFilter)
+    ]);
 
     res.status(200).json({
       success: true,
       count: sales.length,
+      totalCount,
+      page,
+      limit,
+      totalPages: Math.ceil(totalCount / limit),
       data: sales
     });
   } catch (error) {

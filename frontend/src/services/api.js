@@ -34,13 +34,15 @@ api.interceptors.response.use(
 export const authAPI = {
   register: (userData) => api.post('/auth/register', userData),
   login: (credentials) => api.post('/auth/login', credentials),
-  getCurrentUser: () => api.get('/auth/me')
+  getCurrentUser: () => api.get('/auth/me'),
+  updateProfile: (userData) => api.put('/auth/profile', userData),
+  changePassword: (passwordData) => api.post('/auth/change-password', passwordData)
 };
 
 // Product API calls
 export const productAPI = {
-  getAll: () => api.get('/products'),
-  search: (query) => api.get('/products/search', { params: { query } }),
+  getAll: (page = 1, limit = 10) => api.get('/products', { params: { page, limit } }),
+  search: (query, page = 1, limit = 10) => api.get('/products/search', { params: { query, page, limit } }),
   getById: (id) => api.get(`/products/${id}`),
   getByBarcode: (barcode) => api.get(`/products/barcode/${barcode}`),
   create: (data) => api.post('/products', data),
@@ -51,8 +53,8 @@ export const productAPI = {
 
 // Sale API calls
 export const saleAPI = {
-  getAll: () => api.get('/sales'),
-  search: (query) => api.get('/sales/search', { params: { q: query } }),
+  getAll: (page = 1, limit = 15) => api.get('/sales', { params: { page, limit } }),
+  search: (query, page = 1, limit = 15) => api.get('/sales/search', { params: { q: query, page, limit } }),
   getById: (id) => api.get(`/sales/${id}`),
   create: (data) => api.post('/sales', data),
   getTodayStats: () => api.get('/sales/stats/today'),

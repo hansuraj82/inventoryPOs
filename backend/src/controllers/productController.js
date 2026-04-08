@@ -1,15 +1,26 @@
 const Product = require('../models/Product');
 
 // @route   GET /api/products
-// @desc    Get all products for user
+// @desc    Get all products for user with pagination
 // @access  Private
 exports.getProducts = async (req, res, next) => {
   try {
-    const products = await Product.find({ user: req.user.id }).sort('-createdAt');
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
+    const skip = (page - 1) * limit;
+
+    const [products, totalCount] = await Promise.all([
+      Product.find({ user: req.user.id }).sort('-createdAt').skip(skip).limit(limit),
+      Product.countDocuments({ user: req.user.id })
+    ]);
 
     res.status(200).json({
       success: true,
       count: products.length,
+      totalCount,
+      page,
+      limit,
+      totalPages: Math.ceil(totalCount / limit),
       data: products
     });
   } catch (error) {
@@ -18,11 +29,14 @@ exports.getProducts = async (req, res, next) => {
 };
 
 // @route   GET /api/products/search
-// @desc    Search products by name or barcode
+// @desc    Search products by name or barcode with pagination
 // @access  Private
 exports.searchProducts = async (req, res, next) => {
   try {
     const { query } = req.query;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
+    const skip = (page - 1) * limit;
 
     if (!query) {
       return res.status(400).json({
@@ -31,18 +45,27 @@ exports.searchProducts = async (req, res, next) => {
       });
     }
 
-    const products = await Product.find({
+    const searchFilter = {
       user: req.user.id,
       $or: [
         { name: { $regex: query, $options: 'i' } },
         { barcode: { $regex: query, $options: 'i' } },
         { category: { $regex: query, $options: 'i' } }
       ]
-    }).limit(20);
+    };
+
+    const [products, totalCount] = await Promise.all([
+      Product.find(searchFilter).sort('-createdAt').skip(skip).limit(limit),
+      Product.countDocuments(searchFilter)
+    ]);
 
     res.status(200).json({
       success: true,
       count: products.length,
+      totalCount,
+      page,
+      limit,
+      totalPages: Math.ceil(totalCount / limit),
       data: products
     });
   } catch (error) {

@@ -11,6 +11,8 @@ export const useAuthStore = create((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await authAPI.login({ email, password });
+      console.log('response is',response);
+      
       const { token, user } = response.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
@@ -43,6 +45,34 @@ export const useAuthStore = create((set) => ({
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     set({ user: null, token: null });
+  },
+
+  updateProfile: async (userData) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await authAPI.updateProfile(userData);
+      const updatedUser = response.data.user;
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      set({ user: updatedUser, isLoading: false });
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to update profile';
+      set({ error: message, isLoading: false });
+      return { success: false, message };
+    }
+  },
+
+  changePassword: async (passwordData) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await authAPI.changePassword(passwordData);
+      set({ isLoading: false });
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to change password';
+      set({ error: message, isLoading: false });
+      return { success: false, message };
+    }
   },
 
   clearError: () => set({ error: null })

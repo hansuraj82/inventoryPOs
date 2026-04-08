@@ -29,6 +29,45 @@ const validationSchemas = {
     })
   }),
 
+  updateProfile: Joi.object({
+    name: Joi.string().min(2).max(50).messages({
+      'string.min': 'Name must be at least 2 characters',
+      'string.max': 'Name cannot exceed 50 characters'
+    }),
+    phone: Joi.string().min(10).max(20).messages({
+      'string.min': 'Phone number must be at least 10 characters',
+      'string.max': 'Phone number cannot exceed 20 characters'
+    }),
+    shopName: Joi.string().min(2).max(100).messages({
+      'string.min': 'Shop name must be at least 2 characters',
+      'string.max': 'Shop name cannot exceed 100 characters'
+    })
+  }).min(1).messages({
+    'object.min': 'At least one field must be provided for update'
+  }),
+
+  changePassword: Joi.object({
+    currentPassword: Joi.string().required().messages({
+      'string.empty': 'Current password is required'
+    }),
+    newPassword: Joi.string()
+      .min(8)
+      .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+      .required()
+      .messages({
+        'string.empty': 'New password is required',
+        'string.min': 'New password must be at least 8 characters',
+        'string.pattern.base': 'Password must contain uppercase, lowercase, number and special character'
+      }),
+    confirmPassword: Joi.string()
+      .valid(Joi.ref('newPassword'))
+      .required()
+      .messages({
+        'any.only': 'Passwords do not match',
+        'string.empty': 'Password confirmation is required'
+      })
+  }),
+
   // Product schemas
   createProduct: Joi.object({
     name: Joi.string().min(2).max(100).required().messages({

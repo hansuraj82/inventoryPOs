@@ -15,16 +15,32 @@ export default function Sales() {
   const [isSearching, setIsSearching] = useState(false);
   const debounceTimer = useRef(null);
   const { user } = useAuthStore();
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 15;
 
   useEffect(() => {
     fetchSales();
   }, []);
 
-  const fetchSales = async () => {
+  const fetchSales = async (page = 1, isLoadMore = false) => {
     try {
       setIsLoading(true);
-      const response = await saleAPI.getAll();
-      setPublicSales(response.data.data);
+      const response = await saleAPI.getAll(page, pageSize);
+      const paginatedSales = response.data.data || [];
+      
+      if (isLoadMore) {
+        setPublicSales(prev => [...prev, ...paginatedSales]);
+      } else {
+        setPublicSales(paginatedSales);
+      }
+      
+      setCurrentPage(page);
+      setTotalCount(response.data.totalCount || 0);
+      setHasMore(page < response.data.totalPages);
     } catch (error) {
       toast.error('Failed to fetch sales');
     } finally {
@@ -42,7 +58,9 @@ export default function Sales() {
 
     if (!query.trim()) {
       // If search is empty, fetch all sales
-      fetchSales();
+      setCurrentPage(1);
+      setHasMore(true);
+      fetchSales(1);
       return;
     }
 
@@ -56,7 +74,9 @@ export default function Sales() {
     try {
       // Validate query before sending
       if (query.trim().length === 0) {
-        fetchSales();
+        setCurrentPage(1);
+        setHasMore(true);
+        fetchSales(1);
         return;
       }
 
@@ -66,8 +86,13 @@ export default function Sales() {
       }
 
       setIsSearching(true);
-      const response = await saleAPI.search(query);
-      setPublicSales(response.data.data);
+      const response = await saleAPI.search(query, 1, pageSize);
+      const searchResults = response.data.data || [];
+      setPublicSales(searchResults);
+      setCurrentPage(1);
+      setTotalCount(response.data.totalCount || 0);
+      setHasMore(1 < response.data.totalPages);
+      
       if (response.data.count === 0) {
         toast.info('No sales found matching your search');
       }
@@ -82,7 +107,9 @@ export default function Sales() {
       }
       
       // Fallback: show all sales on search error
-      fetchSales();
+      setCurrentPage(1);
+      setHasMore(true);
+      fetchSales(1);
     } finally {
       setIsSearching(false);
     }
@@ -112,6 +139,10 @@ export default function Sales() {
 
   const toggleExpand = (id) => {
     setExpandedId(expandedId === id ? null : id);
+  };
+
+  const handleLoadMore = () => {
+    fetchSales(currentPage + 1, true);
   };
 
   return (
@@ -311,6 +342,22 @@ export default function Sales() {
               )}
             </div>
           ))}
+          
+          {/* Pagination Info & Load More Button */}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-6 px-4 py-3 bg-gray-50 rounded-lg">
+            <p className="text-xs md:text-sm text-gray-600">
+              Showing {sales.length} of {totalCount} sales
+            </p>
+            {hasMore && (
+              <button
+                onClick={handleLoadMore}
+                disabled={isLoading}
+                className="btn-primary text-xs md:text-sm px-4 py-2 disabled:opacity-50 w-full sm:w-auto"
+              >
+                {isLoading ? 'Loading...' : '⬇ Load More'}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </Layout>

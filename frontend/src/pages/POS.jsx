@@ -21,11 +21,11 @@ export default function POS() {
   const [lastSale, setLastSale] = useState(null);
   const [quickAddQuantity, setQuickAddQuantity] = useState('1');
   const [selectedProductForAdd, setSelectedProductForAdd] = useState(null);
-  
+
   // Customer Information
   const [customerInfo, setCustomerInfo] = useState({
-    name: '',
-    mobile: '',
+    name: 'N/A',
+    mobile: 'N/A',
     address: '',
     email: ''
   });
@@ -33,11 +33,16 @@ export default function POS() {
   // New Product Form
   const [newProduct, setNewProduct] = useState({
     name: '',
-    price: '',
+    costPrice: '',
+    sellingPrice: '',
     quantity: '',
     category: 'General',
+    sku: '',
+    description: '',
     minStock: '5'
   });
+
+  const [productFormErrors, setProductFormErrors] = useState({});
 
   const { user } = useAuthStore();
   const { items: cartItems, addItem, updateQuantity, removeItem, clearCart, totalAmount } = useCartStore();
@@ -50,7 +55,13 @@ export default function POS() {
     try {
       setIsLoading(true);
       const response = await productAPI.getAll();
-      setProducts(response.data.data);
+      // Show only 2 most recently added products (default view)
+      const allProducts = response.data.data;
+      // Sort by createdAt in descending order and take top 2
+      const recentProducts = allProducts
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 2);
+      setProducts(recentProducts);
     } catch (error) {
       toast.error('Failed to fetch products');
     } finally {
@@ -66,6 +77,7 @@ export default function POS() {
 
     try {
       const response = await productAPI.search(query);
+      // Show search results
       setProducts(response.data.data);
     } catch (error) {
       toast.error('Search failed');
@@ -81,8 +93,16 @@ export default function POS() {
     try {
       const response = await productAPI.getByBarcode(barcode);
       if (response.data.success) {
-        addItem(response.data.data);
-        toast.success(`${response.data.data.name} added to cart`);
+        const product = response.data.data;
+        addItem({
+          _id: product._id,
+          name: product.name,
+          price: product.sellingPrice,
+          quantity: 1,
+          barcode: product.barcode,
+          category: product.category
+        });
+        toast.success(`${product.name} added to cart`);
         setShowBarcodeScanner(false);
       }
     } catch (error) {
@@ -99,37 +119,85 @@ export default function POS() {
 
   const handleAddNewProduct = async (e) => {
     e.preventDefault();
-    try {
-      if (!newProduct.name || !newProduct.price) {
-        toast.error('Please fill in all required fields');
-        return;
-      }
+    const errors = {};
 
+    // Validation
+    if (!newProduct.name || newProduct.name.trim() === '') {
+      errors.name = 'Product name is required';
+    }
+
+    if (!newProduct.sellingPrice || parseFloat(newProduct.sellingPrice) <= 0) {
+      errors.sellingPrice = 'Selling price must be greater than 0';
+    }
+
+    if (newProduct.costPrice && parseFloat(newProduct.costPrice) < 0) {
+      errors.costPrice = 'Cost price cannot be negative';
+    }
+
+    if (newProduct.quantity && parseInt(newProduct.quantity) < 0) {
+      errors.quantity = 'Quantity cannot be negative';
+    }
+
+    if (newProduct.minStock && parseInt(newProduct.minStock) < 0) {
+      errors.minStock = 'Min stock cannot be negative';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setProductFormErrors(errors);
+      toast.error('Please fix the errors in the form');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
       const productData = {
-        ...newProduct,
+        name: newProduct.name.trim(),
         barcode: scannedBarcode,
-        price: parseFloat(newProduct.price),
+        sellingPrice: parseFloat(newProduct.sellingPrice),
+        costPrice: parseFloat(newProduct.costPrice) || 0,
         quantity: parseInt(newProduct.quantity) || 0,
+        category: newProduct.category || 'General',
+        sku: newProduct.sku || null,
+        description: newProduct.description || null,
         minStock: parseInt(newProduct.minStock) || 5
       };
 
       const response = await productAPI.create(productData);
+      const createdProduct = response.data.data;
+
       toast.success('Product added successfully!');
-      addItem(response.data.data);
-      
+
+      // Add to cart
+      addItem({
+        _id: createdProduct._id,
+        name: createdProduct.name,
+        price: createdProduct.sellingPrice,
+        quantity: createdProduct.quantity,
+        barcode: createdProduct.barcode,
+        category: createdProduct.category
+      });
+
       // Reset form
       setNewProduct({
         name: '',
-        price: '',
+        sellingPrice: '',
+        costPrice: '',
         quantity: '',
         category: 'General',
+        sku: '',
+        description: '',
         minStock: '5'
       });
+      setProductFormErrors({});
       setScannedBarcode('');
       setShowProductForm(false);
+
+      // Refresh products list
       fetchProducts();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to add product');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -138,13 +206,18 @@ export default function POS() {
       toast.error('Product out of stock');
       return;
     }
-    setSelectedProductForAdd(product);
+    // Ensure the product has a price field for cart operations
+    const productForCart = {
+      ...product,
+      price: product.sellingPrice || product.price
+    };
+    setSelectedProductForAdd(productForCart);
     setQuickAddQuantity('1');
   };
 
   const handleConfirmAdd = () => {
     if (!selectedProductForAdd) return;
-    
+
     const qtyToAdd = parseInt(quickAddQuantity) || 1;
     if (qtyToAdd <= 0) {
       toast.error('Please enter a valid quantity');
@@ -203,7 +276,7 @@ export default function POS() {
       };
       const response = await saleAPI.create(saleData);
       const sale = response.data.data;
-      
+
       toast.success('Sale completed successfully!');
       setLastSale(sale);
       clearCart();
@@ -230,8 +303,7 @@ export default function POS() {
       await printInvoice(lastSale, user.shopName);
       toast.success('Invoice sent to printer');
     } catch (error) {
-      console.log(error);
-      
+
       toast.error('Failed to print invoice RE');
     }
   };
@@ -420,7 +492,7 @@ export default function POS() {
                   </p>
                   <div className="flex justify-between items-center mb-4 gap-2">
                     <span className="text-xl md:text-2xl font-bold text-indigo-600">
-                      {formatCurrency(product.price)}
+                      {formatCurrency(product.sellingPrice || product.price)}
                     </span>
                     <span className={`text-xs font-medium whitespace-nowrap ${product.quantity > 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'} px-2 py-1 rounded`}>
                       {product.quantity}
@@ -503,7 +575,7 @@ export default function POS() {
                           ✕
                         </button>
                       </div>
-                      
+
                       {/* Quantity Control */}
                       <div className="flex items-center gap-2 bg-white rounded border border-gray-300 p-1.5">
                         <button
@@ -628,90 +700,197 @@ export default function POS() {
 
       {/* Add New Product Modal */}
       {showProductForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Add Product from Barcode</h2>
-            <p className="text-gray-600 mb-4">Barcode: <span className="font-semibold">{scannedBarcode}</span></p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full my-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">Add Product</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProductForm(false);
+                  setScannedBarcode('');
+                  setProductFormErrors({});
+                }}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-gray-600 mb-6">Barcode: <span className="font-semibold text-indigo-600">{scannedBarcode}</span></p>
 
             <form onSubmit={handleAddNewProduct} className="space-y-4">
+              {/* Product Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Product Name *
+                  Product Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={newProduct.name}
-                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                  className="input-field"
-                  required
+                  onChange={(e) => {
+                    setNewProduct({ ...newProduct, name: e.target.value });
+                    if (productFormErrors.name) {
+                      setProductFormErrors({ ...productFormErrors, name: '' });
+                    }
+                  }}
+                  placeholder="Enter product name"
+                  className={`input-field w-full ${productFormErrors.name ? 'border-red-500' : ''}`}
                 />
+                {productFormErrors.name && (
+                  <p className="text-red-500 text-sm mt-1">{productFormErrors.name}</p>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Selling Price and Cost Price */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Price *
+                    Cost Price <span className="text-gray-500 text-xs">(Optional)</span>
                   </label>
                   <input
                     type="number"
-                    value={newProduct.price}
-                    onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                    className="input-field"
+                    value={newProduct.costPrice}
+                    onChange={(e) => {
+                      setNewProduct({ ...newProduct, costPrice: e.target.value });
+                      if (productFormErrors.costPrice) {
+                        setProductFormErrors({ ...productFormErrors, costPrice: '' });
+                      }
+                    }}
+                    placeholder="0.00"
+                    className={`input-field w-full ${productFormErrors.costPrice ? 'border-red-500' : ''}`}
                     step="0.01"
-                    required
                   />
+                  {productFormErrors.costPrice && (
+                    <p className="text-red-500 text-sm mt-1">{productFormErrors.costPrice}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Quantity
+                    Selling Price <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={newProduct.sellingPrice}
+                    onChange={(e) => {
+                      setNewProduct({ ...newProduct, sellingPrice: e.target.value });
+                      if (productFormErrors.sellingPrice) {
+                        setProductFormErrors({ ...productFormErrors, sellingPrice: '' });
+                      }
+                    }}
+                    placeholder="0.00"
+                    className={`input-field w-full ${productFormErrors.sellingPrice ? 'border-red-500' : ''}`}
+                    step="0.01"
+                  />
+                  {productFormErrors.sellingPrice && (
+                    <p className="text-red-500 text-sm mt-1">{productFormErrors.sellingPrice}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Quantity and Min Stock */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Quantity <span className="text-gray-500 text-xs">(Optional)</span>
                   </label>
                   <input
                     type="number"
                     value={newProduct.quantity}
-                    onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
-                    className="input-field"
+                    onChange={(e) => {
+                      setNewProduct({ ...newProduct, quantity: e.target.value });
+                      if (productFormErrors.quantity) {
+                        setProductFormErrors({ ...productFormErrors, quantity: '' });
+                      }
+                    }}
+                    placeholder="0"
+                    className={`input-field w-full ${productFormErrors.quantity ? 'border-red-500' : ''}`}
+                  />
+                  {productFormErrors.quantity && (
+                    <p className="text-red-500 text-sm mt-1">{productFormErrors.quantity}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Min Stock <span className="text-gray-500 text-xs">(Optional)</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={newProduct.minStock}
+                    onChange={(e) => {
+                      setNewProduct({ ...newProduct, minStock: e.target.value });
+                      if (productFormErrors.minStock) {
+                        setProductFormErrors({ ...productFormErrors, minStock: '' });
+                      }
+                    }}
+                    placeholder="5"
+                    className={`input-field w-full ${productFormErrors.minStock ? 'border-red-500' : ''}`}
+                  />
+                  {productFormErrors.minStock && (
+                    <p className="text-red-500 text-sm mt-1">{productFormErrors.minStock}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Category and SKU */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Category <span className="text-gray-500 text-xs">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newProduct.category}
+                    onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                    placeholder="General"
+                    className="input-field w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    SKU <span className="text-gray-500 text-xs">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newProduct.sku}
+                    onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
+                    placeholder="e.g., SKU123"
+                    className="input-field w-full"
                   />
                 </div>
               </div>
 
+              {/* Description */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Category
+                  Description <span className="text-gray-500 text-xs">(Optional)</span>
                 </label>
-                <input
-                  type="text"
-                  value={newProduct.category}
-                  onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                  className="input-field"
+                <textarea
+                  value={newProduct.description}
+                  onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                  placeholder="Enter product description"
+                  rows="3"
+                  className="input-field w-full resize-none"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Min Stock
-                </label>
-                <input
-                  type="number"
-                  value={newProduct.minStock}
-                  onChange={(e) => setNewProduct({ ...newProduct, minStock: e.target.value })}
-                  className="input-field"
-                />
-              </div>
-
-              <div className="flex gap-3">
+              {/* Buttons */}
+              <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
-                  className="btn-primary flex-1"
+                  disabled={isProcessing}
+                  className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Add & To Cart
+                  {isProcessing ? 'Adding...' : '✓ Add & To Cart'}
                 </button>
                 <button
                   type="button"
+                  disabled={isProcessing}
                   onClick={() => {
                     setShowProductForm(false);
                     setScannedBarcode('');
+                    setProductFormErrors({});
                   }}
-                  className="btn-secondary flex-1"
+                  className="btn-secondary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>

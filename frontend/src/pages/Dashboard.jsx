@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { saleAPI, productAPI } from '../services/api';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import { DashboardFullSkeleton, ModalProductsContentSkeleton, ModalSalesContentSkeleton, ModalHeaderSkeleton, ModalFooterSkeleton } from '../components/Skeletons';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingModal, setIsLoadingModal] = useState(false);
@@ -27,17 +29,8 @@ export default function Dashboard() {
     fetchStats();
   }, []);
 
-  const handleViewProducts = async () => {
-    try {
-      setDetailsModal({ isOpen: true, type: 'products', data: [] });
-      setIsLoadingModal(true);
-      const response = await productAPI.getAll();
-      setDetailsModal({ isOpen: true, type: 'products', data: response.data.data });
-    } catch (error) {
-      toast.error('Failed to fetch products');
-    } finally {
-      setIsLoadingModal(false);
-    }
+  const handleViewProducts = () => {
+    navigate('/products');
   };
 
   const handleViewLowStock = async () => {
@@ -89,7 +82,7 @@ export default function Dashboard() {
           >
             <h3 className="text-gray-600 text-xs md:text-sm font-semibold mb-2">Total Products</h3>
             <p className="text-2xl md:text-3xl font-bold text-gray-900">{stats.totalProducts}</p>
-            <p className="text-xs text-gray-500 mt-2">Click to view details</p>
+            <p className="text-xs text-gray-500 mt-2">Go to Products</p>
           </button>
 
           <button

@@ -124,7 +124,8 @@ import {
   LogOut, 
   Menu, 
   X,
-  Store 
+  Store,
+  Settings as SettingsIcon
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -146,6 +147,7 @@ export default function Navbar() {
     { name: 'Products', path: '/products', icon: <Package size={18} /> },
     { name: 'POS', path: '/pos', icon: <ShoppingCart size={18} /> },
     { name: 'Sales', path: '/sales', icon: <ReceiptIndianRupee size={18} /> },
+    { name: 'Settings', path: '/settings', icon: <SettingsIcon size={18} /> },
   ];
 
   return (
@@ -194,6 +196,14 @@ export default function Navbar() {
                 </span>
                 <span className="text-[10px] text-slate-500 mt-1 font-medium">Merchant Account</span>
               </div>
+              
+              <Link
+                to="/settings"
+                className="group flex items-center justify-center p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all"
+                title="Settings"
+              >
+                <SettingsIcon size={18} className="text-slate-400 group-hover:text-indigo-500 transition-colors" />
+              </Link>
               
               <button
                 onClick={handleLogout}

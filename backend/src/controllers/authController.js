@@ -11,6 +11,8 @@ const signToken = (id) => {
 // @desc    Register a user
 // @access  Public
 exports.register = async (req, res, next) => {
+  console.log(req.body);
+  
   try {
     const { name, email, phone, shopName, password, passwordConfirm } = req.body;
 
@@ -109,6 +111,7 @@ exports.login = async (req, res, next) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         shopName: user.shopName,
         role: user.role
       }
@@ -135,6 +138,100 @@ exports.getCurrentUser = async (req, res, next) => {
         phone: user.phone,
         role: user.role
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   PUT /api/auth/profile
+// @desc    Update user profile
+// @access  Private
+exports.updateProfile = async (req, res, next) => {
+  try {
+    const { name, phone, shopName } = req.body;
+    const userId = req.user.id;
+
+    // Find user
+    let user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Update allowed fields
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+    if (shopName) user.shopName = shopName;
+
+    // Save user (will not trigger password hashing since password is not modified)
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        shopName: user.shopName,
+        phone: user.phone,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   POST /api/auth/change-password
+// @desc    Change user password
+// @access  Private
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+
+    // Find user with password field
+    const user = await User.findById(userId).select('+password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify current password
+    const isPasswordCorrect = await user.matchPassword(currentPassword);
+
+    if (!isPasswordCorrect) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Check if new password is same as current password
+    const isSamePassword = await user.matchPassword(newPassword);
+
+    if (isSamePassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password cannot be the same as current password'
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password changed successfully'
     });
   } catch (error) {
     next(error);

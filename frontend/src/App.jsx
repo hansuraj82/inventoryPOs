@@ -12,6 +12,7 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Products = React.lazy(() => import('./pages/Products'));
 const POS = React.lazy(() => import('./pages/POS'));
 const Sales = React.lazy(() => import('./pages/Sales'));
+const Settings = React.lazy(() => import('./pages/Settings'));
 
 function App() {
   const { token } = useAuthStore();
@@ -88,6 +89,17 @@ function App() {
             <PrivateRoute>
               <Suspense fallback={<FullPageLoader />}>
                 <Sales />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/settings"
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<FullPageLoader />}>
+                <Settings />
               </Suspense>
             </PrivateRoute>
           }
