@@ -56,7 +56,7 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center px-3 md:px-4 py-8">
       <div className="bg-white rounded-lg shadow-2xl p-6 md:p-8 max-w-md w-full">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1 md:mb-2 text-center">InventoryPOS</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1 md:mb-2 text-center"><span className="text-indigo-500">Dukanbill</span></h1>
         <p className="text-gray-600 text-sm md:text-base text-center mb-6 md:mb-8">Create your account</p>
 
         <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
