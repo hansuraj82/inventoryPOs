@@ -75,7 +75,7 @@ const calculateGSTBreakdown = (items) => {
 
   (items || []).forEach(item => {
     const taxableValue = Number(item.price) * Number(item.quantity);
-    const gstRate = Number(item.gstRate || 18);
+    const gstRate = Number(item.gstRate) || 0;
     const taxAmount = (taxableValue * gstRate) / 100;
 
     totalTaxable += taxableValue;
@@ -287,7 +287,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     const itemPrice = Number(item.price) || 0;
     const itemQty = Number(item.quantity) || 0;
     const taxableValue = itemPrice * itemQty;
-    const gstRate = Number(item.gstRate);
+    const gstRate = Number(item.gstRate) || 0;
     const taxAmount = (taxableValue * gstRate) / 100;
     const itemTotal = taxableValue + taxAmount;
 
@@ -401,7 +401,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
     items.forEach(item => {
       const taxableValue = Number(item.price) * Number(item.quantity);
-      const gstRate = Number(item.gstRate);
+      const gstRate = Number(item.gstRate) || 0;
       const taxAmount = (taxableValue * gstRate) / 100;
       hsnTaxable += taxableValue;
       hsnTax += taxAmount;
