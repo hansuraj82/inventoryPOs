@@ -41,7 +41,18 @@ const validationSchemas = {
     shopName: Joi.string().min(2).max(100).messages({
       'string.min': 'Shop name must be at least 2 characters',
       'string.max': 'Shop name cannot exceed 100 characters'
-    })
+    }),
+    businessDetails: Joi.object({
+      gstin: Joi.string().allow('', null).optional(),
+      pan: Joi.string().allow('', null).optional(),
+      businessAddress: Joi.string().allow('', null).optional(),
+      businessEmail: Joi.string().email().allow('', null).optional(),
+      businessPhone: Joi.string().allow('', null).optional(),
+      bankName: Joi.string().allow('', null).optional(),
+      accountNumber: Joi.string().allow('', null).optional(),
+      ifscCode: Joi.string().allow('', null).optional(),
+      upiId: Joi.string().allow('', null).optional()
+    }).optional()
   }).min(1).messages({
     'object.min': 'At least one field must be provided for update'
   }),
