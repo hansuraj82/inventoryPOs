@@ -1203,145 +1203,124 @@ export default function POS() {
         </div>
       )}
 
-{/* HSN and GST Editor Modal - Redesigned */}
-{editingItemId && (() => {
-    const currentItem = cartItems.find(item => item._id === editingItemId);
-    if (!currentItem) return null;
-    
-    const taxableAmount = currentItem.price * currentItem.quantity;
-    const gstRate = parseFloat(editingGst) || 0;
-    const taxAmount = (taxableAmount * gstRate) / 100;
-    const totalAmount = taxableAmount + taxAmount;
+      {/* HSN and GST Editor Modal */}
+      {editingItemId && (() => {
+        const currentItem = cartItems.find(item => item._id === editingItemId);
+        if (!currentItem) return null;
+        
+        const taxableAmount = currentItem.price * currentItem.quantity;
+        const gstRate = parseFloat(editingGst) || 0;
+        const taxAmount = (taxableAmount * gstRate) / 100;
+        const totalAmount = taxableAmount + taxAmount;
 
-    return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden relative"
-            >
-                {/* Decorative Background Accent */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50" />
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-lg">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Edit Tax Details</h2>
+                <button
+                  type="button"
+                  onClick={() => setEditingItemId(null)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                >
+                  ✕
+                </button>
+              </div>
 
-                {/* Header */}
-                <div className="flex justify-between items-center mb-8 relative z-10">
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">
-                            Tax <span className="text-indigo-600">Config</span>
-                        </h2>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Regulatory Adjustment</p>
-                    </div>
-                    <button
-                        onClick={() => setEditingItemId(null)}
-                        className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all shadow-sm"
-                    >
-                        <MdClose size={20} />
-                    </button>
+              {/* Product Info */}
+              <div className="bg-blue-50 p-3 rounded mb-4 border border-blue-200">
+                <p className="text-sm text-gray-700"><strong>{currentItem.name}</strong></p>
+                <p className="text-xs text-gray-600">Price: Rs {currentItem.price.toFixed(2)} × Qty: {currentItem.quantity}</p>
+              </div>
+
+              <div className="space-y-4">
+                {/* HSN Code */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    HSN/SAC Code
+                  </label>
+                  <input
+                    type="text"
+                    value={editingHsn}
+                    onChange={(e) => setEditingHsn(e.target.value)}
+                    placeholder="Enter HSN code (e.g., 8517)"
+                    className="input-field w-full text-sm py-2"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Leave empty if no HSN code</p>
                 </div>
 
-                {/* Glass Product Info Card */}
-                <div className="bg-slate-900 rounded-3xl p-5 mb-8 text-white shadow-xl shadow-slate-200 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center shrink-0 border border-white/10">
-                        <MdOutlineInventory2 size={24} className="text-indigo-300" />
-                    </div>
-                    <div className="overflow-hidden">
-                        <p className="font-black text-sm uppercase tracking-tight truncate">{currentItem.name}</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 tabular-nums">
-                            {currentItem.quantity} Units <span className="mx-2 text-slate-600">|</span> Rs {currentItem.price.toFixed(2)}
-                        </p>
-                    </div>
+                {/* GST Rate */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    GST Rate (%)
+                  </label>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[0, 5, 12, 18, 28].map((rate) => (
+                      <button
+                        key={rate}
+                        onClick={() => setEditingGst(rate.toString())}
+                        className={`py-2 px-3 rounded text-sm font-semibold transition ${
+                          parseFloat(editingGst) === rate
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {rate}%
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="number"
+                    value={editingGst}
+                    onChange={(e) => setEditingGst(e.target.value)}
+                    placeholder="Custom GST %"
+                    className="input-field w-full text-sm py-2"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                  />
                 </div>
 
-                <div className="space-y-6">
-                    {/* HSN Code Input */}
-                    <div className="relative">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 block ml-1">HSN/SAC Code</label>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                value={editingHsn}
-                                onChange={(e) => setEditingHsn(e.target.value)}
-                                placeholder="8517..."
-                                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold text-slate-800 focus:border-indigo-500 focus:ring-0 outline-none transition-all placeholder:text-slate-300"
-                            />
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300">
-                                <MdQrCodeScanner size={20} />
-                            </div>
-                        </div>
-                    </div>
+                {/* Amount Calculation */}
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-lg border-2 border-green-200 space-y-2">
+                  <h3 className="text-sm font-bold text-gray-800 mb-3">Amount Breakdown</h3>
+                  
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-700">Taxable Amount:</span>
+                    <span className="font-semibold text-gray-900">Rs {taxableAmount.toFixed(2)}</span>
+                  </div>
 
-                    {/* GST Rate Selection */}
-                    <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block ml-1">GST Rate (%)</label>
-                        <div className="grid grid-cols-5 gap-2 mb-4">
-                            {[0, 5, 12, 18, 28].map((rate) => (
-                                <button
-                                    key={rate}
-                                    onClick={() => setEditingGst(rate.toString())}
-                                    className={`py-3 rounded-xl text-[11px] font-black transition-all border-2 ${
-                                        parseFloat(editingGst) === rate
-                                        ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-200'
-                                        : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
-                                    }`}
-                                >
-                                    {rate}%
-                                </button>
-                            ))}
-                        </div>
-                        <input
-                            type="number"
-                            value={editingGst}
-                            onChange={(e) => setEditingGst(e.target.value)}
-                            placeholder="Custom GST %"
-                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 transition-all"
-                        />
-                    </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-700">GST @ {gstRate.toFixed(1)}%:</span>
+                    <span className="font-semibold text-emerald-600">+ Rs {taxAmount.toFixed(2)}</span>
+                  </div>
 
-                    {/* Pro Breakdown Summary */}
-                    <div className="bg-indigo-50/50 rounded-[2rem] p-6 border border-indigo-100/50">
-                        <div className="space-y-3">
-                            <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                <span>Base Taxable</span>
-                                <span className="text-slate-900 tabular-nums">Rs {taxableAmount.toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                <span>GST @ {gstRate}%</span>
-                                <span className="text-indigo-600 tabular-nums">+ Rs {taxAmount.toFixed(2)}</span>
-                            </div>
-                            <div className="pt-4 border-t border-indigo-100 flex justify-between items-end">
-                                <div>
-                                    <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Final Invoice Amount</p>
-                                    <p className="text-2xl font-black text-slate-900 tabular-nums tracking-tighter">
-                                        Rs {totalAmount.toFixed(2)}
-                                    </p>
-                                </div>
-                                <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
-                                    <MdCheck size={20} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-4">
-                        <button
-                            onClick={handleSaveTaxDetails}
-                            className="flex-[2] bg-slate-900 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-xl active:scale-95"
-                        >
-                            Commit Changes
-                        </button>
-                        <button
-                            onClick={() => setEditingItemId(null)}
-                            className="flex-1 bg-slate-50 text-slate-400 py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-red-50 hover:text-red-500 transition-all"
-                        >
-                            Abort
-                        </button>
-                    </div>
+                  <div className="border-t-2 border-green-300 pt-2 mt-2 flex justify-between items-center">
+                    <span className="text-sm font-bold text-gray-900">Total Amount:</span>
+                    <span className="text-lg font-bold text-green-600">Rs {totalAmount.toFixed(2)}</span>
+                  </div>
                 </div>
-            </motion.div>
-        </div>
-    );
-})()}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t">
+                  <button
+                    onClick={handleSaveTaxDetails}
+                    className="btn-primary flex-1 py-2 text-sm font-bold"
+                  >
+                    ✓ Save
+                  </button>
+                  <button
+                    onClick={() => setEditingItemId(null)}
+                    className="btn-secondary flex-1 py-2 text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </Layout>
   );
 }

@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Logo } from './Logo';
 
 // =================== HELPER FUNCTIONS ===================
 
@@ -158,7 +159,8 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     danger: [239, 68, 68],      // Red
     muted: [100, 116, 139],     // Gray
     lightBg: [248, 250, 252],   // Light gray
-    border: [226, 232, 240]     // Light border
+    border: [226, 232, 240],  // Light border
+    jk: [19, 78, 74]
   };
 
   let currentY = 15;
@@ -175,15 +177,22 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   };
 
   // =================== HEADER SECTION ===================
-  // Top accent bar
-  doc.setFillColor(...COLORS.accent);
-  doc.rect(0, 0, pageWidth, 2.5, 'F');
 
+
+  doc.addImage(`data:image/png;base64,${Logo}`, "PNG", 0, 0, 240, 43.3);
   // Shop name
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setFontSize(20);
-  doc.setTextColor(...COLORS.primary);
-  doc.text(shopName.toUpperCase(), MARGIN_LEFT, currentY + 5);
+  doc.setTextColor(...COLORS.jk);
+  const initialsOfShopName = shopName
+  .trim()
+  .split(' ')
+  .map(word => word[0])
+  .join('')
+  .substring(0, 2)
+  .toUpperCase();
+
+  doc.text(initialsOfShopName.toUpperCase(), MARGIN_LEFT, currentY + 5);
 
   // Invoice status badge
   const isPaid = !(saleData.isCredit && saleData.creditAmount > 0);
@@ -194,7 +203,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.roundedRect(badgeX, badgeY - 1, 38, 7, 1, 1, 'F');
   
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(isPaid ? 21 : 153, isPaid ? 128 : 27, isPaid ? 61 : 27);
   doc.text(isPaid ? "PAID IN FULL" : "PAYMENT DUE", badgeX + 19, badgeY + 3.5, { align: 'center' });
 
@@ -202,15 +211,16 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
   // Business details section
   doc.setFillColor(...COLORS.lightBg);
-  doc.roundedRect(MARGIN_LEFT, currentY, CONTENT_WIDTH, 18, 1, 1, 'F');
+  doc.roundedRect(MARGIN_LEFT, currentY -2 , CONTENT_WIDTH, 20, 1, 1, 'F');
 
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'italic');
   doc.setFontSize(8);
   doc.setTextColor(...COLORS.muted);
 
-  let detailY = currentY + 5;
+  let detailY = currentY + 2;
   const detailLineHeight = 3.7;
-
+doc.text(`${shopName}`, MARGIN_LEFT + 3, detailY);
+detailY += detailLineHeight;
   if (businessDetails.gstin) {
     doc.text(`GSTIN: ${businessDetails.gstin}`, MARGIN_LEFT + 3, detailY);
     detailY += detailLineHeight;
@@ -238,7 +248,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.roundedRect(MARGIN_LEFT + CONTENT_WIDTH / 2 + 2, currentY, CONTENT_WIDTH / 2 - 2, 12, 1, 1, 'F');
 
   doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.muted);
 
   const leftBoxX = MARGIN_LEFT + 3;
@@ -248,14 +258,14 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.text('INVOICE DETAILS', rightBoxX, currentY + 3);
 
   doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.primary);
 
   doc.text(saleData.customer?.name || 'Customer', leftBoxX, currentY + 7);
   doc.text(saleData.invoiceNumber || 'N/A', rightBoxX, currentY + 7);
 
   doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'italic');
   doc.setTextColor(...COLORS.muted);
 
   doc.text(`Phone: ${saleData.customer?.mobile || 'N/A'}`, leftBoxX, currentY + 10);
@@ -291,7 +301,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.rect(MARGIN_LEFT, currentY, CONTENT_WIDTH, 6, 'F');
 
   doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(255, 255, 255);
 
   let colX = MARGIN_LEFT;
@@ -322,10 +332,12 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
   // Table items
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'italic');
   doc.setTextColor(...COLORS.primary);
 
   const rowHeight = 7;
+  console.log(saleData);
+  
 
   (saleData.items || []).forEach((item, index) => {
     checkPageBreak(rowHeight + 2);
@@ -346,9 +358,12 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
     // Item name with text wrapping
     doc.setTextColor(...COLORS.primary);
-    const itemLines = doc.splitTextToSize(item.productName || 'N/A', colWidths.item - 3);
+    doc.setFont('helvetica', 'bolditalic');
+    const itemLines = doc.splitTextToSize((item.productName || 'N/A').toUpperCase(), colWidths.item - 3);
     const itemHeight = itemLines.length * 3;
-    doc.text(itemLines, colX + 2, currentY + 4, { lineHeightFactor: 1.2, align: 'left' });
+    doc.text(itemLines, colX + 2, currentY + 4, );
+    doc.setFontSize(6);
+    doc.setFont('helvetica', 'italic');
     colX += colWidths.item;
 
     // HSN Code
@@ -374,9 +389,9 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
     // GST Rate
     doc.setTextColor(79, 70, 229);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('helvetica', 'bolditalic');
     doc.text(`${gstRate.toFixed(0)}%`, colX + colWidths.gst / 2, currentY + 4, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('helvetica', 'italic');
     colX += colWidths.gst;
 
     // Final Amount
@@ -417,7 +432,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.rect(taxSummaryLeftX + 1, currentY + 1, taxSummaryLeftWidth - 2, 5, 'F');
   
   doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(255, 255, 255);
   doc.text('HSN/SAC', taxSummaryLeftX + 3, currentY + 4.5);
   doc.text('TAXABLE VAL', taxSummaryLeftX + 45, currentY + 4.5, { align: 'right' });
@@ -426,7 +441,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
   let tableY = currentY + 10;
   doc.setTextColor(...COLORS.primary);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'italic');
 
   // Group items by HSN
   const itemsByHsn = {};
@@ -469,7 +484,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.roundedRect(taxSummaryRightX, currentY, taxSummaryRightWidth, 6, 1, 1, 'F');
   
   doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(255, 255, 255);
   doc.text('SUMMARY', taxSummaryRightX + 3, currentY + 4);
 
@@ -479,21 +494,21 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
   // Subtotal
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'italic');
   doc.setTextColor(...COLORS.muted);
   doc.text('Subtotal:', taxSumLabelX, summaryY);
   doc.setTextColor(...COLORS.primary);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.text(`Rs ${totalTaxable.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
 
   summaryY += 5;
   
   // Total Tax
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'italic');
   doc.setTextColor(...COLORS.muted);
   doc.text('Total Tax:', taxSumLabelX, summaryY);
   doc.setTextColor(79, 70, 229);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.text(`Rs ${totalTax.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
 
   summaryY += 7;
@@ -506,7 +521,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   summaryY += 3;
   
   // Grand Total
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setFontSize(10);
   doc.setTextColor(...COLORS.accent);
   doc.text('GRAND TOTAL:', taxSumLabelX, summaryY);
@@ -521,12 +536,12 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.roundedRect(MARGIN_LEFT, currentY, CONTENT_WIDTH, 7, 1, 1, 'F');
 
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'italic');
   doc.setTextColor(...COLORS.muted);
   doc.text('Amount in Words:', MARGIN_LEFT + 3, currentY + 2.6);
 
   const amountWords = convertNumberToWords(Number(grandTotal));
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.primary);
   doc.text(
     `${amountWords} Only`,
@@ -544,17 +559,17 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.roundedRect(MARGIN_LEFT, currentY, CONTENT_WIDTH / 2 - 2, 14, 1, 1, 'F');
   
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.accent);
   doc.text('PAYMENT METHOD', MARGIN_LEFT + 3, currentY + 3);
 
   doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.primary);
   doc.text((saleData.paymentMethod || 'CASH').toUpperCase(), MARGIN_LEFT + 3, currentY + 7);
 
   doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'italic');
   doc.setTextColor(...COLORS.muted);
   doc.text(`Amount Paid: ${formatCurrency(saleData.paidAmount || 0)}`, MARGIN_LEFT + 3, currentY + 11);
 
@@ -563,7 +578,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.roundedRect(MARGIN_LEFT + CONTENT_WIDTH / 2 + 2, currentY, CONTENT_WIDTH / 2 - 2, 14, 1, 1, 'F');
   
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.accent);
   doc.text('PAYMENT SUMMARY', MARGIN_LEFT + CONTENT_WIDTH / 2 + 5, currentY + 3);
 
@@ -571,12 +586,12 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   const rightPaymentValueX = RIGHT - 3;
 
   doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'italic');
   doc.setTextColor(...COLORS.muted);
   doc.text('Grand Total:', rightPaymentX, currentY + 7);
   doc.text('Amount Paid:', rightPaymentX, currentY + 10);
 
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.accent);
   doc.text(formatCurrency(grandTotal), rightPaymentValueX, currentY + 7, { align: 'right' });
   doc.text(formatCurrency(saleData.paidAmount || 0), rightPaymentValueX, currentY + 10, { align: 'right' });
@@ -594,7 +609,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     doc.roundedRect(MARGIN_LEFT, currentY, CONTENT_WIDTH, 6, 1, 1);
 
     doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('helvetica', 'bolditalic');
     doc.setTextColor(153, 27, 27);
     doc.text('REMAINING DUE:', MARGIN_LEFT + 3, currentY + 3.8);
     doc.text(formatCurrency(saleData.creditAmount), RIGHT - 3, currentY + 3.5, { align: 'right' });
@@ -610,13 +625,13 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     
     currentY += 2;
     doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('helvetica', 'bolditalic');
     doc.setTextColor(...COLORS.accent);
     doc.text('NOTES:', MARGIN_LEFT, currentY);
 
     currentY += 2;
     doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('helvetica', 'italic');
     doc.setTextColor(...COLORS.primary);
     const notesLines = doc.splitTextToSize(saleData.notes, CONTENT_WIDTH - 4);
     doc.text(notesLines, MARGIN_LEFT + 2, currentY + 1, { lineHeightFactor: 1.2 });
@@ -637,12 +652,12 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   
   // For Bank details
   doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.accent);
   doc.text('BANK DETAILS', MARGIN_LEFT, footerY);
   
   doc.setFontSize(6);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'italic');
   doc.setTextColor(...COLORS.primary);
   if (businessDetails.bankDetails) {
     doc.text(businessDetails.bankDetails, MARGIN_LEFT, footerY + 3);
@@ -652,7 +667,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
   // Authorized signature
   doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.accent);
   doc.text('AUTHORIZED SIGNATORY', RIGHT - 40, footerY);
   
@@ -662,7 +677,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
   // Footer info
   doc.setFontSize(6);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'italic');
   doc.setTextColor(...COLORS.muted);
   const generatedDate = new Date(saleData.createdAt).toLocaleString('en-IN');
   const footerText = `Generated on ${generatedDate} | Invoice ID: ${saleData._id?.substring(0, 8) || 'N/A'}`;
@@ -673,7 +688,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   if (pageCount > 1) {
     doc.setFontSize(6);
     doc.setTextColor(...COLORS.muted);
-    doc.text(`Page ${doc.internal.getCurrentPageNumber()} of ${pageCount}`, RIGHT, pageHeight - 3, { align: 'right' });
+    doc.text(`Page ${doc.internal.pages.length} of ${pageCount}`, RIGHT, pageHeight - 3, { align: 'right' });
   }
 
   return doc;
