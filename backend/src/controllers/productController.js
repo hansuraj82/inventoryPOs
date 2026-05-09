@@ -185,8 +185,6 @@ exports.createProduct = async (req, res, next) => {
       data: product
     });
   } catch (error) {
-    console.log(error);
-    
     next(error);
   }
 };

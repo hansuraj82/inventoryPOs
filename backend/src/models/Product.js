@@ -39,6 +39,15 @@ const productSchema = new mongoose.Schema({
   sku: {
     type: String
   },
+  hsnCode: {
+    type: String,
+    description: 'HSN/SAC code for GST compliance'
+  },
+  gstRate: {
+    type: Number,
+    default: 18,
+    description: 'GST rate percentage (e.g., 5, 12, 18, 28)'
+  },
   description: {
     type: String
   },

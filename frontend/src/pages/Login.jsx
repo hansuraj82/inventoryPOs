@@ -10,6 +10,8 @@ export default function Login() {
     email: '',
     password: ''
   });
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleChange = (e) => {
     setCredentials({ ...credentials, [e.target.name]: e.target.value });
@@ -19,7 +21,8 @@ export default function Login() {
     e.preventDefault();
     
     if (!credentials.email || !credentials.password) {
-      toast.error('Please fill in all fields');
+      setErrorMessage('Please fill in all fields');
+      setShowErrorModal(true);
       return;
     }
 
@@ -28,8 +31,14 @@ export default function Login() {
       toast.success('Login successful!');
       navigate('/dashboard');
     } else {
-      toast.error(error || 'Login failed');
+      setErrorMessage(error || 'Login failed. Please check your credentials.');
+      setShowErrorModal(true);
     }
+  };
+
+  const closeErrorModal = () => {
+    setShowErrorModal(false);
+    setErrorMessage('');
   };
 
   return (
@@ -84,6 +93,50 @@ export default function Login() {
           </Link>
         </p>
       </div>
+
+      {/* Error Modal */}
+      {showErrorModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center px-4 z-50">
+          <div className="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full animate-in">
+            {/* Error Header */}
+            <div className="flex items-center justify-center mb-4">
+              <div className="bg-red-100 rounded-full p-3">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Error Title */}
+            <h2 className="text-xl font-bold text-gray-900 text-center mb-2">
+              Login Failed
+            </h2>
+
+            {/* Error Message */}
+            <p className="text-gray-600 text-center mb-6 text-sm md:text-base">
+              {errorMessage}
+            </p>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={closeErrorModal}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+
+            {/* Help Text */}
+            <p className="text-center text-gray-500 text-xs mt-4">
+              Need help?{' '}
+              <a href="#" className="text-indigo-600 hover:text-indigo-700 font-semibold">
+                Contact support
+              </a>
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

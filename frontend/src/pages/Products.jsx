@@ -30,6 +30,8 @@ export default function Products() {
     barcode: '',
     category: 'General',
     sku: '',
+    hsnCode: '',
+    gstRate: '18',
     description: '',
     minStock: '5'
   });
@@ -106,6 +108,8 @@ export default function Products() {
           barcode: product.barcode || '',
           category: product.category || 'General',
           sku: product.sku || '',
+          hsnCode: product.hsnCode || '',
+          gstRate: product.gstRate?.toString() || '18',
           description: product.description || '',
           minStock: product.minStock?.toString() || '5'
         });
@@ -122,6 +126,10 @@ export default function Products() {
         quantity: '',
         barcode: barcode,
         category: 'General',
+        sku: '',
+        hsnCode: '',
+        gstRate: '18',
+        description: '',
         minStock: '5'
       });
       setEditingId(null);
@@ -150,6 +158,7 @@ export default function Products() {
         costPrice: parseFloat(formData.costPrice),
         sellingPrice: parseFloat(formData.sellingPrice),
         quantity: formData.quantity ? parseFloat(formData.quantity) : 0,
+        gstRate: parseInt(formData.gstRate) || 18,
         minStock: formData.minStock ? parseFloat(formData.minStock) : 5
       };
 
@@ -170,6 +179,8 @@ export default function Products() {
         barcode: '',
         category: 'General',
         sku: '',
+        hsnCode: '',
+        gstRate: '18',
         description: '',
         minStock: '5'
       });
@@ -192,6 +203,10 @@ export default function Products() {
       quantity: product.quantity.toString(),
       barcode: product.barcode || '',
       category: product.category || 'General',
+      sku: product.sku || '',
+      hsnCode: product.hsnCode || '',
+      gstRate: product.gstRate?.toString() || '18',
+      description: product.description || '',
       minStock: product.minStock.toString()
     });
     setEditingId(product._id);
@@ -232,6 +247,10 @@ export default function Products() {
       quantity: '',
       barcode: '',
       category: 'General',
+      sku: '',
+      hsnCode: '',
+      gstRate: '18',
+      description: '',
       minStock: '5'
     });
   };
@@ -393,6 +412,38 @@ export default function Products() {
               />
             </div>
 
+            <div>
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
+                HSN/SAC Code
+              </label>
+              <input
+                type="text"
+                name="hsnCode"
+                value={formData.hsnCode}
+                onChange={handleChange}
+                placeholder="e.g., 27090010"
+                className="input-field text-xs md:text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
+                GST Rate (%)
+              </label>
+              <select
+                name="gstRate"
+                value={formData.gstRate}
+                onChange={handleChange}
+                className="input-field text-xs md:text-sm"
+              >
+                <option value="0">0%</option>
+                <option value="5">5%</option>
+                <option value="12">12%</option>
+                <option value="18">18%</option>
+                <option value="28">28%</option>
+              </select>
+            </div>
+
             <div className="col-span-1 md:col-span-2">
               <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">
                 Description
@@ -485,13 +536,13 @@ export default function Products() {
                     <td className="px-3 lg:px-4 py-3 text-center space-x-2">
                       <button
                         onClick={() => handleEdit(product)}
-                        className="text-indigo-600 hover:text-indigo-900 text-xs md:text-sm font-medium"
+                        className="flex-1 p-2 bg-indigo-100 text-indigo-600 rounded text-xs font-medium hover:bg-indigo-200"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(product._id)}
-                        className="text-red-600 hover:text-red-900 text-xs md:text-sm font-medium"
+                        className="flex-1 p-2 bg-red-100 text-red-600 rounded text-xs font-medium hover:bg-red-200"
                       >
                         Delete
                       </button>

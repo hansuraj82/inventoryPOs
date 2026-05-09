@@ -18,14 +18,18 @@ export default function POS() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paidAmount, setPaidAmount] = useState('');
+  const [isGstBill, setIsGstBill] = useState(true);
   const [lastSale, setLastSale] = useState(null);
   const [quickAddQuantity, setQuickAddQuantity] = useState('1');
   const [selectedProductForAdd, setSelectedProductForAdd] = useState(null);
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editingHsn, setEditingHsn] = useState('');
+  const [editingGst, setEditingGst] = useState('18');
 
   // Customer Information
   const [customerInfo, setCustomerInfo] = useState({
-    name: 'N/A',
-    mobile: 'N/A',
+    name: '',
+    mobile: '',
     address: '',
     email: ''
   });
@@ -38,6 +42,8 @@ export default function POS() {
     quantity: '',
     category: 'General',
     sku: '',
+    hsnCode: '',
+    gstRate: '18',
     description: '',
     minStock: '5'
   });
@@ -45,7 +51,7 @@ export default function POS() {
   const [productFormErrors, setProductFormErrors] = useState({});
 
   const { user } = useAuthStore();
-  const { items: cartItems, addItem, updateQuantity, removeItem, clearCart, totalAmount } = useCartStore();
+  const { items: cartItems, addItem, updateQuantity, removeItem, clearCart, totalAmount, updateItemTaxDetails } = useCartStore();
 
   useEffect(() => {
     fetchProducts();
@@ -100,7 +106,9 @@ export default function POS() {
           price: product.sellingPrice,
           quantity: 1,
           barcode: product.barcode,
-          category: product.category
+          category: product.category,
+          hsnCode: product.hsnCode,
+          gstRate: product.gstRate
         });
         toast.success(`${product.name} added to cart`);
         setShowBarcodeScanner(false);
@@ -158,6 +166,8 @@ export default function POS() {
         quantity: parseInt(newProduct.quantity) || 0,
         category: newProduct.category || 'General',
         sku: newProduct.sku || null,
+        hsnCode: newProduct.hsnCode || null,
+        gstRate: parseInt(newProduct.gstRate) || 18,
         description: newProduct.description || null,
         minStock: parseInt(newProduct.minStock) || 5
       };
@@ -172,9 +182,11 @@ export default function POS() {
         _id: createdProduct._id,
         name: createdProduct.name,
         price: createdProduct.sellingPrice,
-        quantity: createdProduct.quantity,
+        quantity: 1,
         barcode: createdProduct.barcode,
-        category: createdProduct.category
+        category: createdProduct.category,
+        hsnCode: createdProduct.hsnCode,
+        gstRate: createdProduct.gstRate
       });
 
       // Reset form
@@ -185,6 +197,8 @@ export default function POS() {
         quantity: '',
         category: 'General',
         sku: '',
+        hsnCode: '',
+        gstRate: '18',
         description: '',
         minStock: '5'
       });
@@ -206,10 +220,13 @@ export default function POS() {
       toast.error('Product out of stock');
       return;
     }
-    // Ensure the product has a price field for cart operations
+    // Ensure all required fields are present
     const productForCart = {
       ...product,
-      price: product.sellingPrice || product.price
+      price: product.sellingPrice || product.price,
+      // Ensure HSN and GST are always present
+      hsnCode: product.hsnCode || '',
+      gstRate: product.gstRate || 18
     };
     setSelectedProductForAdd(productForCart);
     setQuickAddQuantity('1');
@@ -234,9 +251,34 @@ export default function POS() {
     setQuickAddQuantity('1');
   };
 
+  const handleEditTaxDetails = (item) => {
+    setEditingItemId(item._id);
+    setEditingHsn(item.customHsnCode || item.hsnCode || '');
+    setEditingGst(item.customGstRate || item.gstRate || '18');
+  };
+
+  const handleSaveTaxDetails = () => {
+    if (!editingItemId) return;
+    updateItemTaxDetails(editingItemId, editingHsn, parseFloat(editingGst) || 18);
+    toast.success('Tax details updated');
+    setEditingItemId(null);
+    setEditingHsn('');
+    setEditingGst('18');
+  };
+
   const calculateChange = () => {
     const paid = parseFloat(paidAmount) || 0;
-    return paid - totalAmount;
+    
+    // Calculate effective total based on isGstBill flag
+    let effectiveTotal = 0;
+    cartItems.forEach(item => {
+      const base = item.price * item.quantity;
+      const gstRate = isGstBill ? (item.customGstRate || item.gstRate || 18) : 0;
+      const tax = (base * gstRate) / 100;
+      effectiveTotal += base + tax;
+    });
+    
+    return paid - effectiveTotal;
   };
 
   const handleCompletePayment = async () => {
@@ -263,17 +305,58 @@ export default function POS() {
 
     try {
       setIsProcessing(true);
+      
+      // Calculate effective total based on isGstBill flag
+      let effectiveTotal = 0;
+      cartItems.forEach(item => {
+        const base = item.price * item.quantity;
+        const gstRate = isGstBill ? (item.customGstRate || item.gstRate || 18) : 0;
+        const tax = (base * gstRate) / 100;
+        effectiveTotal += base + tax;
+      });
+      
       const saleData = {
         customer: customerInfo,
-        items: cartItems.map(item => ({
-          product: item._id,
-          quantity: item.quantity,
-          price: item.price
-        })),
-        totalAmount,
+        items: cartItems.map((item, idx) => {
+          // If not a GST bill, set everything to 0/empty
+          if (!isGstBill) {
+            const itemData = {
+              product: item._id,
+              quantity: item.quantity,
+              price: item.price,
+              hsnCode: '',
+              gstRate: 0
+            };
+            return itemData;
+          }
+
+          // For GST bills: Priority: custom value > default value > fallback
+          const finalHsn = (item.customHsnCode !== undefined && item.customHsnCode !== null) 
+            ? String(item.customHsnCode).trim() 
+            : (item.hsnCode ? String(item.hsnCode).trim() : '');
+          
+          const finalGst = (item.customGstRate !== undefined && item.customGstRate !== null 
+            ? Number(item.customGstRate)
+            : (item.gstRate !== undefined && item.gstRate !== null 
+              ? Number(item.gstRate)
+              : 18));
+
+          const itemData = {
+            product: item._id,
+            quantity: item.quantity,
+            price: item.price,
+            hsnCode: finalHsn,
+            gstRate: finalGst
+          };
+          
+          return itemData;
+        }),
+        totalAmount: effectiveTotal,
         paymentMethod,
-        paidAmount: paid
+        paidAmount: paid,
+        isGstBill
       };
+      
       const response = await saleAPI.create(saleData);
       const sale = response.data.data;
 
@@ -300,18 +383,37 @@ export default function POS() {
   const handlePrintInvoice = async () => {
     if (!lastSale) return;
     try {
-      await printInvoice(lastSale, user.shopName);
+      const businessDetails = {
+        gstin: user.businessDetails?.gstin || '',
+        pan: user.businessDetails?.pan || '',
+        address: user.businessDetails?.businessAddress || '',
+        phone: user.businessDetails?.businessPhone || '',
+        email: user.businessDetails?.businessEmail || '',
+        bankDetails: user.businessDetails?.bankName && user.businessDetails?.accountNumber
+          ? `${user.businessDetails.bankName}, Acc: ${user.businessDetails.accountNumber}, IFSC: ${user.businessDetails.ifscCode || 'N/A'}`
+          : ''
+      };
+      await printInvoice(lastSale, user.shopName, businessDetails);
       toast.success('Invoice sent to printer');
     } catch (error) {
-
-      toast.error('Failed to print invoice RE');
+      toast.error('Failed to print invoice');
     }
   };
 
   const handleDownloadInvoice = async () => {
     if (!lastSale) return;
     try {
-      await downloadInvoice(lastSale, user.shopName);
+      const businessDetails = {
+        gstin: user.businessDetails?.gstin || '',
+        pan: user.businessDetails?.pan || '',
+        address: user.businessDetails?.businessAddress || '',
+        phone: user.businessDetails?.businessPhone || '',
+        email: user.businessDetails?.businessEmail || '',
+        bankDetails: user.businessDetails?.bankName && user.businessDetails?.accountNumber
+          ? `${user.businessDetails.bankName}, Acc: ${user.businessDetails.accountNumber}, IFSC: ${user.businessDetails.ifscCode || 'N/A'}`
+          : ''
+      };
+      await downloadInvoice(lastSale, user.shopName, businessDetails);
       toast.success('Invoice downloaded');
     } catch (error) {
       toast.error('Failed to download invoice');
@@ -603,11 +705,64 @@ export default function POS() {
                           +
                         </button>
                         <span className="text-xs md:text-sm font-semibold text-gray-700 ml-auto flex-shrink-0">
-                          {formatCurrency(item.price * item.quantity)}
+                          {(() => {
+                            const baseAmount = item.price * item.quantity;
+                            const gstRate = item.customGstRate || item.gstRate || 18;
+                            const taxAmount = (baseAmount * gstRate) / 100;
+                            const total = baseAmount + taxAmount;
+                            return formatCurrency(total);
+                          })()}
                         </span>
+                      </div>
+
+                      {/* HSN and GST Info with Amount Breakdown */}
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-1.5 rounded border border-blue-200 text-xs md:text-sm">
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          <div>
+                            <p className="text-gray-600 text-xs">HSN:</p>
+                            <p className="font-semibold text-gray-900">{item.customHsnCode || item.hsnCode || '-'}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600 text-xs">GST:</p>
+                            <p className="font-semibold text-indigo-600">{item.customGstRate || item.gstRate || 18}%</p>
+                          </div>
+                        </div>
+                        
+                        {/* Amount Breakdown */}
+                        <div className="text-xs bg-white p-1 rounded mb-2 space-y-0.5">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Base:</span>
+                            <span className="font-medium">{formatCurrency(item.price * item.quantity)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Tax:</span>
+                            <span className="font-medium text-green-600">
+                              {formatCurrency(((item.price * item.quantity) * (item.customGstRate || item.gstRate || 18)) / 100)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between border-t pt-0.5">
+                            <span className="font-semibold">Total:</span>
+                            <span className="font-bold text-indigo-600">
+                              {formatCurrency((item.price * item.quantity) + (((item.price * item.quantity) * (item.customGstRate || item.gstRate || 18)) / 100))}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <button
+                          onClick={() => handleEditTaxDetails(item)}
+                          className="w-full px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded hover:bg-indigo-200 font-semibold"
+                        >
+                          Edit HSN & GST
+                        </button>
                       </div>
                     </div>
                   ))}
+                </div>
+
+                {/* HSN Code Info Banner */}
+                <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4 text-xs">
+                  <p className="text-blue-900 font-semibold mb-1">💡 Tip: Set HSN Codes</p>
+                  <p className="text-blue-800">Click "Edit HSN & GST" on each item to set HSN/SAC codes for proper GST compliance on invoices.</p>
                 </div>
 
                 {/* Payment Section */}
@@ -627,16 +782,57 @@ export default function POS() {
                     </select>
                   </div>
 
-                  {/* Amount Summary */}
-                  <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-3 md:p-4 rounded-lg border-2 border-indigo-200">
-                    <div className="flex justify-between mb-2 text-xs md:text-sm text-gray-700">
-                      <span>Total:</span>
-                      <span className="font-semibold">{formatCurrency(totalAmount)}</span>
-                    </div>
-                    <div className="border-t border-indigo-200 pt-2 flex justify-between text-sm md:text-base font-bold text-indigo-700">
-                      <span>Amount Due:</span>
-                      <span>{formatCurrency(totalAmount)}</span>
-                    </div>
+                  {/* GST Bill Toggle */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 md:p-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isGstBill}
+                        onChange={(e) => setIsGstBill(e.target.checked)}
+                        className="w-4 h-4 text-indigo-600 rounded"
+                      />
+                      <span className="text-xs md:text-sm font-medium text-gray-700">
+                        {isGstBill ? '✓ GST Bill' : '✗ Non-GST Bill'}
+                      </span>
+                    </label>
+                    <p className="text-xs text-gray-600 mt-2 ml-7">
+                      {isGstBill ? 'GST will be applied' : 'No GST will be applied'}
+                    </p>
+                  </div>
+
+                  {/* Amount Summary with Tax Breakdown */}
+                  <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-3 md:p-4 rounded-lg border-2 border-indigo-200 space-y-2">
+                    {/* Calculate base and tax amounts */}
+                    {(() => {
+                      let baseTotal = 0;
+                      let totalTax = 0;
+                      cartItems.forEach(item => {
+                        const base = item.price * item.quantity;
+                        const gstRate = isGstBill ? (item.customGstRate || item.gstRate || 18) : 0;
+                        const tax = (base * gstRate) / 100;
+                        baseTotal += base;
+                        totalTax += tax;
+                      });
+                      
+                      const effectiveTotal = baseTotal + totalTax;
+                      
+                      return (
+                        <>
+                          <div className="flex justify-between text-xs text-gray-700">
+                            <span>Subtotal (Base):</span>
+                            <span className="font-semibold">{formatCurrency(baseTotal)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-green-700">
+                            <span>Total Tax:</span>
+                            <span className="font-semibold">+ {formatCurrency(totalTax)}</span>
+                          </div>
+                          <div className="border-t-2 border-indigo-300 pt-2 flex justify-between text-sm md:text-base font-bold text-indigo-700">
+                            <span>Amount Due:</span>
+                            <span>{formatCurrency(effectiveTotal)}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Payment Amount */}
@@ -859,6 +1055,38 @@ export default function POS() {
                 </div>
               </div>
 
+              {/* HSN/SAC Code and GST Rate */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    HSN/SAC Code <span className="text-gray-500 text-xs">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newProduct.hsnCode}
+                    onChange={(e) => setNewProduct({ ...newProduct, hsnCode: e.target.value })}
+                    placeholder="e.g., 27090010"
+                    className="input-field w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    GST Rate (%) <span className="text-gray-500 text-xs">(Default: 18%)</span>
+                  </label>
+                  <select
+                    value={newProduct.gstRate}
+                    onChange={(e) => setNewProduct({ ...newProduct, gstRate: e.target.value })}
+                    className="input-field w-full"
+                  >
+                    <option value="0">0%</option>
+                    <option value="5">5%</option>
+                    <option value="12">12%</option>
+                    <option value="18">18%</option>
+                    <option value="28">28%</option>
+                  </select>
+                </div>
+              </div>
+
               {/* Description */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -974,6 +1202,146 @@ export default function POS() {
           </div>
         </div>
       )}
+
+{/* HSN and GST Editor Modal - Redesigned */}
+{editingItemId && (() => {
+    const currentItem = cartItems.find(item => item._id === editingItemId);
+    if (!currentItem) return null;
+    
+    const taxableAmount = currentItem.price * currentItem.quantity;
+    const gstRate = parseFloat(editingGst) || 0;
+    const taxAmount = (taxableAmount * gstRate) / 100;
+    const totalAmount = taxableAmount + taxAmount;
+
+    return (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden relative"
+            >
+                {/* Decorative Background Accent */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50" />
+
+                {/* Header */}
+                <div className="flex justify-between items-center mb-8 relative z-10">
+                    <div>
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">
+                            Tax <span className="text-indigo-600">Config</span>
+                        </h2>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Regulatory Adjustment</p>
+                    </div>
+                    <button
+                        onClick={() => setEditingItemId(null)}
+                        className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all shadow-sm"
+                    >
+                        <MdClose size={20} />
+                    </button>
+                </div>
+
+                {/* Glass Product Info Card */}
+                <div className="bg-slate-900 rounded-3xl p-5 mb-8 text-white shadow-xl shadow-slate-200 flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center shrink-0 border border-white/10">
+                        <MdOutlineInventory2 size={24} className="text-indigo-300" />
+                    </div>
+                    <div className="overflow-hidden">
+                        <p className="font-black text-sm uppercase tracking-tight truncate">{currentItem.name}</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 tabular-nums">
+                            {currentItem.quantity} Units <span className="mx-2 text-slate-600">|</span> Rs {currentItem.price.toFixed(2)}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    {/* HSN Code Input */}
+                    <div className="relative">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 block ml-1">HSN/SAC Code</label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={editingHsn}
+                                onChange={(e) => setEditingHsn(e.target.value)}
+                                placeholder="8517..."
+                                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold text-slate-800 focus:border-indigo-500 focus:ring-0 outline-none transition-all placeholder:text-slate-300"
+                            />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300">
+                                <MdQrCodeScanner size={20} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* GST Rate Selection */}
+                    <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block ml-1">GST Rate (%)</label>
+                        <div className="grid grid-cols-5 gap-2 mb-4">
+                            {[0, 5, 12, 18, 28].map((rate) => (
+                                <button
+                                    key={rate}
+                                    onClick={() => setEditingGst(rate.toString())}
+                                    className={`py-3 rounded-xl text-[11px] font-black transition-all border-2 ${
+                                        parseFloat(editingGst) === rate
+                                        ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-200'
+                                        : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                                    }`}
+                                >
+                                    {rate}%
+                                </button>
+                            ))}
+                        </div>
+                        <input
+                            type="number"
+                            value={editingGst}
+                            onChange={(e) => setEditingGst(e.target.value)}
+                            placeholder="Custom GST %"
+                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 transition-all"
+                        />
+                    </div>
+
+                    {/* Pro Breakdown Summary */}
+                    <div className="bg-indigo-50/50 rounded-[2rem] p-6 border border-indigo-100/50">
+                        <div className="space-y-3">
+                            <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                <span>Base Taxable</span>
+                                <span className="text-slate-900 tabular-nums">Rs {taxableAmount.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                <span>GST @ {gstRate}%</span>
+                                <span className="text-indigo-600 tabular-nums">+ Rs {taxAmount.toFixed(2)}</span>
+                            </div>
+                            <div className="pt-4 border-t border-indigo-100 flex justify-between items-end">
+                                <div>
+                                    <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Final Invoice Amount</p>
+                                    <p className="text-2xl font-black text-slate-900 tabular-nums tracking-tighter">
+                                        Rs {totalAmount.toFixed(2)}
+                                    </p>
+                                </div>
+                                <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
+                                    <MdCheck size={20} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-4">
+                        <button
+                            onClick={handleSaveTaxDetails}
+                            className="flex-[2] bg-slate-900 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-xl active:scale-95"
+                        >
+                            Commit Changes
+                        </button>
+                        <button
+                            onClick={() => setEditingItemId(null)}
+                            className="flex-1 bg-slate-50 text-slate-400 py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-red-50 hover:text-red-500 transition-all"
+                        >
+                            Abort
+                        </button>
+                    </div>
+                </div>
+            </motion.div>
+        </div>
+    );
+})()}
     </Layout>
   );
 }

@@ -5,7 +5,6 @@ import Layout from '../components/Layout';
 
 export default function Settings() {
   const { user, updateProfile, changePassword, isLoading } = useAuthStore();
-  console.log('user is',user);
   
   const [activeTab, setActiveTab] = useState('profile');
   
@@ -13,6 +12,18 @@ export default function Settings() {
     name: '',
     phone: '',
     shopName: ''
+  });
+
+  const [businessDetailsFormData, setBusinessDetailsFormData] = useState({
+    gstin: '',
+    pan: '',
+    businessAddress: '',
+    businessEmail: '',
+    businessPhone: '',
+    bankName: '',
+    accountNumber: '',
+    ifscCode: '',
+    upiId: ''
   });
 
   const [passwordFormData, setPasswordFormData] = useState({
@@ -36,12 +47,32 @@ export default function Settings() {
         phone: user.phone || '',
         shopName: user.shopName || ''
       });
+
+      setBusinessDetailsFormData({
+        gstin: user.businessDetails?.gstin || '',
+        pan: user.businessDetails?.pan || '',
+        businessAddress: user.businessDetails?.businessAddress || '',
+        businessEmail: user.businessDetails?.businessEmail || '',
+        businessPhone: user.businessDetails?.businessPhone || '',
+        bankName: user.businessDetails?.bankName || '',
+        accountNumber: user.businessDetails?.accountNumber || '',
+        ifscCode: user.businessDetails?.ifscCode || '',
+        upiId: user.businessDetails?.upiId || ''
+      });
     }
   }, [user]);
 
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
     setProfileFormData((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleBusinessDetailsChange = (e) => {
+    const { name, value } = e.target;
+    setBusinessDetailsFormData((prev) => ({
       ...prev,
       [name]: value
     }));
@@ -111,6 +142,25 @@ export default function Settings() {
     const result = await updateProfile(updateData);
     if (result.success) {
       toast.success('Profile updated successfully!');
+    } else {
+      toast.error(result.message);
+    }
+  };
+
+  const handleBusinessDetailsSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validate at least one field is filled
+    if (!Object.values(businessDetailsFormData).some(val => val)) {
+      toast.error('Please fill in at least one business detail');
+      return;
+    }
+
+    const result = await updateProfile({
+      businessDetails: businessDetailsFormData
+    });
+    if (result.success) {
+      toast.success('Business details updated successfully!');
     } else {
       toast.error(result.message);
     }
@@ -205,6 +255,16 @@ export default function Settings() {
               }`}
             >
               Change Password
+            </button>
+            <button
+              onClick={() => setActiveTab('business')}
+              className={`pb-4 px-4 font-medium transition-colors ${
+                activeTab === 'business'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Business Details
             </button>
           </div>
 
@@ -413,6 +473,178 @@ export default function Settings() {
                   className="w-full bg-blue-600 text-white font-medium py-2 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   {isLoading ? 'Changing Password...' : 'Change Password'}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Business Details Tab */}
+          {activeTab === 'business' && (
+            <div className="bg-white rounded-lg shadow p-6 md:p-8">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Business Details for GST Invoice</h2>
+              <p className="text-sm text-gray-600 mb-6">Add your business information to appear on GST-compliant invoices</p>
+              
+              <form onSubmit={handleBusinessDetailsSubmit} className="space-y-6">
+                {/* GST & TAX Details */}
+                <div className="border-b pb-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">GST & Tax Details</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        GSTIN (Goods & Service Tax ID Number)
+                      </label>
+                      <input
+                        type="text"
+                        name="gstin"
+                        value={businessDetailsFormData.gstin}
+                        onChange={handleBusinessDetailsChange}
+                        placeholder="e.g., 18AABCU0001R1Z0"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">15-digit GST number</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        PAN (Permanent Account Number)
+                      </label>
+                      <input
+                        type="text"
+                        name="pan"
+                        value={businessDetailsFormData.pan}
+                        onChange={handleBusinessDetailsChange}
+                        placeholder="e.g., AAAPN1234R"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">10-digit PAN number</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Business Address & Contact */}
+                <div className="border-b pb-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Business Address & Contact</h3>
+                  
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Business Address
+                      </label>
+                      <textarea
+                        name="businessAddress"
+                        value={businessDetailsFormData.businessAddress}
+                        onChange={handleBusinessDetailsChange}
+                        placeholder="Enter complete business address"
+                        rows="3"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition resize-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Business Phone
+                        </label>
+                        <input
+                          type="tel"
+                          name="businessPhone"
+                          value={businessDetailsFormData.businessPhone}
+                          onChange={handleBusinessDetailsChange}
+                          placeholder="e.g., +91-9876543210"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Business Email
+                        </label>
+                        <input
+                          type="email"
+                          name="businessEmail"
+                          value={businessDetailsFormData.businessEmail}
+                          onChange={handleBusinessDetailsChange}
+                          placeholder="e.g., shop@example.com"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bank Details */}
+                <div className="border-b pb-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Bank Details</h3>
+                  
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Bank Name
+                      </label>
+                      <input
+                        type="text"
+                        name="bankName"
+                        value={businessDetailsFormData.bankName}
+                        onChange={handleBusinessDetailsChange}
+                        placeholder="e.g., State Bank of India"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Account Number
+                        </label>
+                        <input
+                          type="text"
+                          name="accountNumber"
+                          value={businessDetailsFormData.accountNumber}
+                          onChange={handleBusinessDetailsChange}
+                          placeholder="e.g., 1234567890"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          IFSC Code
+                        </label>
+                        <input
+                          type="text"
+                          name="ifscCode"
+                          value={businessDetailsFormData.ifscCode}
+                          onChange={handleBusinessDetailsChange}
+                          placeholder="e.g., SBIN0001234"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        UPI ID (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        name="upiId"
+                        value={businessDetailsFormData.upiId}
+                        onChange={handleBusinessDetailsChange}
+                        placeholder="e.g., shop@upi"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 text-white font-medium py-2 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Saving...' : 'Save Business Details'}
                 </button>
               </form>
             </div>

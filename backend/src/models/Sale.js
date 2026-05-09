@@ -43,12 +43,37 @@ const saleSchema = new mongoose.Schema({
         type: Number,
         required: true
       },
+      hsnCode: String,
+      gstRate: {
+        type: Number,
+        default: 18
+      },
+      taxableValue: {
+        type: Number,
+        required: true
+      },
+      taxAmount: {
+        type: Number,
+        required: true
+      },
+      itemTotal: {
+        type: Number,
+        required: true
+      },
       subtotal: {
         type: Number,
         required: true
       }
     }
   ],
+  totalTaxableAmount: {
+    type: Number,
+    default: 0
+  },
+  totalTaxAmount: {
+    type: Number,
+    default: 0
+  },
   totalAmount: {
     type: Number,
     required: true
@@ -79,7 +104,18 @@ const saleSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  businessDetails: {
+    gstin: String,
+    pan: String,
+    address: String,
+    phone: String,
+    email: String
+  },
   notes: String,
+  isGstBill: {
+    type: Boolean,
+    default: true
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -20,7 +20,7 @@ router.get('/search', searchLimiter, searchSales);
 router.get('/', getSales);
 router.get('/stats/today', getTodaySales);
 router.get('/stats/dashboard', getDashboardStats);
-router.post('/', createLimiter, validate(validationSchemas.createSale), createSale);
+router.post('/', createLimiter, createSale);
 router.get('/:id', getSale);
 
 module.exports = router;

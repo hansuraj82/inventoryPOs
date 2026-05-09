@@ -34,6 +34,31 @@ const userSchema = new mongoose.Schema({
     enum: ['admin', 'staff'],
     default: 'admin'
   },
+  // Business Details for GST Invoice
+  businessDetails: {
+    gstin: {
+      type: String,
+      description: 'Goods & Service Tax Identification Number'
+    },
+    pan: {
+      type: String,
+      description: 'Permanent Account Number'
+    },
+    businessAddress: {
+      type: String,
+      description: 'Complete business address'
+    },
+    businessEmail: {
+      type: String
+    },
+    businessPhone: {
+      type: String
+    },
+    bankName: String,
+    accountNumber: String,
+    ifscCode: String,
+    upiId: String
+  },
   createdAt: {
     type: Date,
     default: Date.now

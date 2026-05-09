@@ -11,8 +11,6 @@ const signToken = (id) => {
 // @desc    Register a user
 // @access  Public
 exports.register = async (req, res, next) => {
-  console.log(req.body);
-  
   try {
     const { name, email, phone, shopName, password, passwordConfirm } = req.body;
 
@@ -59,7 +57,9 @@ exports.register = async (req, res, next) => {
         name: user.name,
         email: user.email,
         shopName: user.shopName,
-        role: user.role
+        phone: user.phone,
+        role: user.role,
+        businessDetails: {}
       }
     });
   } catch (error) {
@@ -113,7 +113,8 @@ exports.login = async (req, res, next) => {
         email: user.email,
         phone: user.phone,
         shopName: user.shopName,
-        role: user.role
+        role: user.role,
+        businessDetails: user.businessDetails || {}
       }
     });
   } catch (error) {
@@ -136,7 +137,8 @@ exports.getCurrentUser = async (req, res, next) => {
         email: user.email,
         shopName: user.shopName,
         phone: user.phone,
-        role: user.role
+        role: user.role,
+        businessDetails: user.businessDetails || {}
       }
     });
   } catch (error) {
@@ -149,7 +151,7 @@ exports.getCurrentUser = async (req, res, next) => {
 // @access  Private
 exports.updateProfile = async (req, res, next) => {
   try {
-    const { name, phone, shopName } = req.body;
+    const { name, phone, shopName, businessDetails } = req.body;
     const userId = req.user.id;
 
     // Find user
@@ -167,6 +169,21 @@ exports.updateProfile = async (req, res, next) => {
     if (phone) user.phone = phone;
     if (shopName) user.shopName = shopName;
 
+    // Update business details
+    if (businessDetails) {
+      user.businessDetails = {
+        gstin: businessDetails.gstin || user.businessDetails?.gstin,
+        pan: businessDetails.pan || user.businessDetails?.pan,
+        businessAddress: businessDetails.businessAddress || user.businessDetails?.businessAddress,
+        businessEmail: businessDetails.businessEmail || user.businessDetails?.businessEmail,
+        businessPhone: businessDetails.businessPhone || user.businessDetails?.businessPhone,
+        bankName: businessDetails.bankName || user.businessDetails?.bankName,
+        accountNumber: businessDetails.accountNumber || user.businessDetails?.accountNumber,
+        ifscCode: businessDetails.ifscCode || user.businessDetails?.ifscCode,
+        upiId: businessDetails.upiId || user.businessDetails?.upiId
+      };
+    }
+
     // Save user (will not trigger password hashing since password is not modified)
     await user.save();
 
@@ -179,7 +196,8 @@ exports.updateProfile = async (req, res, next) => {
         email: user.email,
         shopName: user.shopName,
         phone: user.phone,
-        role: user.role
+        role: user.role,
+        businessDetails: user.businessDetails || {}
       }
     });
   } catch (error) {

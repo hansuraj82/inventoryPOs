@@ -8,54 +8,100 @@ import autoTable from 'jspdf-autotable';
  * Example: 68400 -> "Sixty-Eight Thousand Four Hundred"
  */
 const convertNumberToWords = (num) => {
-  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
-  const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 
-                 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-  const scales = ['', 'Thousand', 'Lakh', 'Crore'];
+  const ones = [
+    '', 'One', 'Two', 'Three', 'Four',
+    'Five', 'Six', 'Seven', 'Eight', 'Nine'
+  ];
 
-  if (num === 0) return 'Zero';
+  const teens = [
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen',
+    'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+  ];
+
+  const tens = [
+    '', '', 'Twenty', 'Thirty', 'Forty',
+    'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'
+  ];
+
+  if (num === 0) {
+    return 'Zero Rupees';
+  }
 
   const convertTwoDigits = (n) => {
-    if (n === 0) return '';
     if (n < 10) return ones[n];
-    if (n < 20) return teens[n - 10];
-    return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
+
+    if (n < 20) {
+      return teens[n - 10];
+    }
+
+    return (
+      tens[Math.floor(n / 10)] +
+      (n % 10 ? ` ${ones[n % 10]}` : '')
+    );
   };
 
   const convertThreeDigits = (n) => {
-    if (n === 0) return '';
-    const hundred = Math.floor(n / 100);
-    const remainder = n % 100;
-    let result = hundred > 0 ? ones[hundred] + ' Hundred' : '';
-    if (remainder > 0) {
-      result += (result ? ' ' : '') + convertTwoDigits(remainder);
+    let result = '';
+
+    if (n >= 100) {
+      result += `${ones[Math.floor(n / 100)]} Hundred`;
+      n %= 100;
+
+      if (n) result += ' ';
     }
+
+    if (n > 0) {
+      result += convertTwoDigits(n);
+    }
+
     return result;
   };
 
-  let numStr = Math.floor(num).toString().padStart(9, '0');
-  let crore = parseInt(numStr.substring(0, 2));
-  let lakh = parseInt(numStr.substring(2, 4));
-  let thousand = parseInt(numStr.substring(4, 7));
-  let hundred = parseInt(numStr.substring(7, 9));
-  
-  let result = '';
-  
-  if (crore > 0) {
-    result += convertTwoDigits(crore) + ' Crore';
-  }
-  if (lakh > 0) {
-    result += (result ? ' ' : '') + convertTwoDigits(lakh) + ' Lakh';
-  }
-  if (thousand > 0) {
-    result += (result ? ' ' : '') + convertThreeDigits(thousand);
-  }
-  if (hundred > 0) {
-    result += (result ? ' ' : '') + convertTwoDigits(hundred);
+  const convertNumber = (n) => {
+    if (n === 0) return 'Zero';
+
+    let result = '';
+
+    const crore = Math.floor(n / 10000000);
+    n %= 10000000;
+
+    const lakh = Math.floor(n / 100000);
+    n %= 100000;
+
+    const thousand = Math.floor(n / 1000);
+    n %= 1000;
+
+    const hundred = n;
+
+    if (crore) {
+      result += `${convertTwoDigits(crore)} Crore `;
+    }
+
+    if (lakh) {
+      result += `${convertTwoDigits(lakh)} Lakh `;
+    }
+
+    if (thousand) {
+      result += `${convertTwoDigits(thousand)} Thousand `;
+    }
+
+    if (hundred) {
+      result += `${convertThreeDigits(hundred)} `;
+    }
+
+    return result.trim();
+  };
+
+  const rupees = Math.floor(num);
+  const paise = Math.round((num - rupees) * 100);
+
+  let words = `${convertNumber(rupees)} Rupees`;
+
+  if (paise > 0) {
+    words += ` and ${convertNumber(paise)} Paise`;
   }
 
-  return result.trim();
+  return words.trim();
 };
 
 /**
@@ -261,16 +307,16 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.text('QTY', colX + colWidths.qty / 2, currentY + 4, { align: 'center' });
   colX += colWidths.qty;
 
-  doc.text('RATE', colX + colWidths.rate / 2, currentY + 4, { align: 'center' });
+  doc.text('RATE / ITEM', colX + colWidths.rate / 2 + 8, currentY + 4, { align: 'right' });
   colX += colWidths.rate;
 
-  doc.text('TAXABLE', colX + colWidths.taxable / 2, currentY + 4, { align: 'center' });
+  doc.text('TAXABLE VALUE', colX + colWidths.taxable / 2 + 10, currentY + 4, { align: 'right' });
   colX += colWidths.taxable;
 
   doc.text('GST%', colX + colWidths.gst / 2, currentY + 4, { align: 'center' });
   colX += colWidths.gst;
 
-  doc.text('AMOUNT', colX + colWidths.amount / 2, currentY + 4, { align: 'center' });
+  doc.text('AMOUNT', colX + colWidths.amount / 2 + 12, currentY + 4, { align: 'right' });
 
   currentY += 7;
 
@@ -308,22 +354,22 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     // HSN Code
     doc.setTextColor(...COLORS.muted);
     doc.setFontSize(7);
-    const hsnDisplay = item.hsnCode && item.hsnCode.trim() ? item.hsnCode : 'No HSN';
+    const hsnDisplay = item.hsnCode && item.hsnCode.trim() ? item.hsnCode : ' - ';
     doc.text(hsnDisplay, colX + 2, currentY + 4);
     doc.setFontSize(8);
     colX += colWidths.hsn;
 
     // Quantity
     doc.setTextColor(...COLORS.primary);
-    doc.text(itemQty.toString(), colX + colWidths.qty / 2, currentY + 4, { align: 'center' });
+    doc.text(itemQty.toString(), colX + colWidths.qty / 2 +1, currentY + 4, { align: 'right' });
     colX += colWidths.qty;
 
     // Rate
-    doc.text(`Rs ${itemPrice.toFixed(2)}`, colX + colWidths.rate / 2, currentY + 4, { align: 'center' });
+    doc.text(`${itemPrice.toFixed(2)}`, colX + colWidths.rate / 2 + 7, currentY + 4, { align: 'right' });
     colX += colWidths.rate;
 
     // Taxable Value
-    doc.text(`Rs ${taxableValue.toFixed(2)}`, colX + colWidths.taxable / 2, currentY + 4, { align: 'center' });
+    doc.text(`${taxableValue.toFixed(2)}`, colX + colWidths.taxable / 2 + 9, currentY + 4, { align: 'right' });
     colX += colWidths.taxable;
 
     // GST Rate
@@ -335,7 +381,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
     // Final Amount
     doc.setTextColor(...COLORS.primary);
-    doc.text(`Rs ${itemTotal.toFixed(2)}`, colX + colWidths.amount / 2, currentY + 4, { align: 'center' });
+    doc.text(`${itemTotal.toFixed(2)}`, colX + colWidths.amount / 2 + 11, currentY + 4, { align: 'right' });
 
     currentY += rowHeight;
 
@@ -373,10 +419,10 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(255, 255, 255);
-  doc.text('HSN/SAC', taxSummaryLeftX + 3, currentY + 4);
-  doc.text('TAXABLE', taxSummaryLeftX + 38, currentY + 4, { align: 'center' });
-  doc.text('GST%', taxSummaryLeftX + 60, currentY + 4, { align: 'center' });
-  doc.text('TAX AMT', taxSummaryLeftX + taxSummaryLeftWidth - 10, currentY + 4, { align: 'center' });
+  doc.text('HSN/SAC', taxSummaryLeftX + 3, currentY + 4.5);
+  doc.text('TAXABLE VAL', taxSummaryLeftX + 45, currentY + 4.5, { align: 'right' });
+  doc.text('GST%', taxSummaryLeftX + 60, currentY + 4.5, { align: 'center' });
+  doc.text('TAX AMT', taxSummaryLeftX + taxSummaryLeftWidth -8, currentY + 4.5, { align: 'right' });
 
   let tableY = currentY + 10;
   doc.setTextColor(...COLORS.primary);
@@ -385,7 +431,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   // Group items by HSN
   const itemsByHsn = {};
   (saleData.items || []).forEach(item => {
-    const hsn = (item.hsnCode && item.hsnCode.trim()) ? item.hsnCode : 'No HSN';
+    const hsn = (item.hsnCode && item.hsnCode.trim()) ? item.hsnCode : ' - ';
     if (!itemsByHsn[hsn]) {
       itemsByHsn[hsn] = [];
     }
@@ -411,9 +457,9 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     const rateStr = Array.from(rates).join(',');
     doc.setFontSize(7);
     doc.text(hsn.substring(0, 8), taxSummaryLeftX + 3, tableY);
-    doc.text(`Rs ${hsnTaxable.toFixed(0)}`, taxSummaryLeftX + 38, tableY, { align: 'center' });
+    doc.text(`${hsnTaxable.toFixed(0)}`, taxSummaryLeftX + 42 , tableY, { align: 'right' });
     doc.text(rateStr, taxSummaryLeftX + 60, tableY, { align: 'center' });
-    doc.text(`Rs ${hsnTax.toFixed(0)}`, taxSummaryLeftX + taxSummaryLeftWidth - 10, tableY, { align: 'center' });
+    doc.text(`${hsnTax.toFixed(0)}`, taxSummaryLeftX + taxSummaryLeftWidth - 10 , tableY, { align: 'right' });
     
     tableY += 5;
   });
@@ -477,15 +523,15 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...COLORS.muted);
-  doc.text('Amount in Words:', MARGIN_LEFT + 3, currentY + 3);
+  doc.text('Amount in Words:', MARGIN_LEFT + 3, currentY + 2.6);
 
-  const amountWords = convertNumberToWords(Math.floor(grandTotal));
+  const amountWords = convertNumberToWords(Number(grandTotal));
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...COLORS.primary);
   doc.text(
-    `Rs ${amountWords} Only`,
+    `${amountWords} Only`,
     MARGIN_LEFT + 3,
-    currentY + 5.5
+    currentY + 6
   );
 
   currentY += 10;

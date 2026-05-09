@@ -11,8 +11,6 @@ export const useAuthStore = create((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await authAPI.login({ email, password });
-      console.log('response is',response);
-      
       const { token, user } = response.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
@@ -92,6 +90,24 @@ export const useCartStore = create((set) => ({
   items: [],
   totalAmount: 0,
 
+  // Helper function to calculate item total with GST
+  getItemTotal: (item) => {
+    const baseAmount = item.price * item.quantity;
+    const gstRate = item.customGstRate || item.gstRate || 18;
+    const taxAmount = (baseAmount * gstRate) / 100;
+    return baseAmount + taxAmount;
+  },
+
+  // Helper function to calculate total cart amount with GST
+  calculateTotalAmount: (items) => {
+    return items.reduce((sum, item) => {
+      const baseAmount = item.price * item.quantity;
+      const gstRate = item.customGstRate || item.gstRate || 18;
+      const taxAmount = (baseAmount * gstRate) / 100;
+      return sum + baseAmount + taxAmount;
+    }, 0);
+  },
+
   addItem: (product) => {
     set((state) => {
       const existingItem = state.items.find(item => item._id === product._id);
@@ -104,10 +120,26 @@ export const useCartStore = create((set) => ({
             : item
         );
       } else {
-        newItems = [...state.items, { ...product, quantity: 1 }];
+        // Ensure HSN and GST are always initialized with proper defaults
+        const newItem = { 
+          ...product, 
+          quantity: 1,
+          // Always initialize these fields to ensure they're available
+          hsnCode: product.hsnCode || '',
+          gstRate: product.gstRate || 18,
+          // Custom values will override defaults
+          customHsnCode: product.customHsnCode || product.hsnCode || '',
+          customGstRate: product.customGstRate || product.gstRate || 18
+        };
+        newItems = [...state.items, newItem];
       }
 
-      const total = newItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const total = newItems.reduce((sum, item) => {
+        const baseAmount = item.price * item.quantity;
+        const gstRate = item.customGstRate !== undefined ? item.customGstRate : (item.gstRate || 18);
+        const taxAmount = (baseAmount * gstRate) / 100;
+        return sum + baseAmount + taxAmount;
+      }, 0);
       return { items: newItems, totalAmount: total };
     });
   },
@@ -123,7 +155,36 @@ export const useCartStore = create((set) => ({
         );
       }
 
-      const total = newItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const total = newItems.reduce((sum, item) => {
+        const baseAmount = item.price * item.quantity;
+        const gstRate = item.customGstRate || item.gstRate || 18;
+        const taxAmount = (baseAmount * gstRate) / 100;
+        return sum + baseAmount + taxAmount;
+      }, 0);
+      return { items: newItems, totalAmount: total };
+    });
+  },
+
+  updateItemTaxDetails: (productId, hsnCode, gstRate) => {
+    set((state) => {
+      const newItems = state.items.map(item => {
+        if (item._id === productId) {
+          const updated = { 
+            ...item, 
+            customHsnCode: String(hsnCode || '').trim(), 
+            customGstRate: Number(gstRate) || 18
+          };
+          return updated;
+        }
+        return item;
+      });
+      
+      const total = newItems.reduce((sum, item) => {
+        const baseAmount = item.price * item.quantity;
+        const gstRateValue = item.customGstRate !== undefined ? item.customGstRate : (item.gstRate || 18);
+        const taxAmount = (baseAmount * gstRateValue) / 100;
+        return sum + baseAmount + taxAmount;
+      }, 0);
       return { items: newItems, totalAmount: total };
     });
   },
@@ -131,7 +192,12 @@ export const useCartStore = create((set) => ({
   removeItem: (productId) => {
     set((state) => {
       const newItems = state.items.filter(item => item._id !== productId);
-      const total = newItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const total = newItems.reduce((sum, item) => {
+        const baseAmount = item.price * item.quantity;
+        const gstRate = item.customGstRate !== undefined ? item.customGstRate : (item.gstRate || 18);
+        const taxAmount = (baseAmount * gstRate) / 100;
+        return sum + baseAmount + taxAmount;
+      }, 0);
       return { items: newItems, totalAmount: total };
     });
   },

@@ -42,7 +42,7 @@ exports.searchSales = async (req, res, next) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 15));
     const skip = (page - 1) * limit;
-    
+
     if (!q || typeof q !== 'string') {
       return res.status(400).json({ success: false, message: 'Please provide a valid search query' });
     }
@@ -130,9 +130,8 @@ exports.getSale = async (req, res, next) => {
 // @access  Private
 exports.createSale = async (req, res, next) => {
   try {
-    const { items, totalAmount, paymentMethod, paidAmount, notes, customer } = req.body;
-    console.log(req.body);
-    
+    const { items, totalAmount, paymentMethod, paidAmount, customer, isGstBill = true } = req.body;
+
     // Validation
     if (!items || items.length === 0) {
       return res.status(400).json({
@@ -169,8 +168,11 @@ exports.createSale = async (req, res, next) => {
     // Update product quantities
     let processedItems = [];
     let totalProfit = 0;
+    let totalTaxableAmount = 0;
+    let totalTaxAmount = 0;
 
     for (const item of items) {
+
       const product = await Product.findOne({
         _id: item.product,
         user: req.user.id
@@ -199,131 +201,186 @@ exports.createSale = async (req, res, next) => {
       const itemProfit = (item.price - itemCostPrice) * item.quantity;
       totalProfit += itemProfit;
 
+      // GST & HSN Calculations with explicit null/undefined/empty checks
+      // Priority: Frontend value (item.gstRate/item.hsnCode) > Product DB value > Default
+      let gstRate = 0;
+      let hsnCode = '';
+      
+      if (isGstBill) {
+        // IMPORTANT: Use strict checks to handle 0 as valid value
+        // Get GST Rate
+        let frontendGst = item.gstRate;
+        // Check if frontend provided a value (including 0, but not undefined/null)
+        if (frontendGst !== undefined && frontendGst !== null && frontendGst !== '') {
+          gstRate = Number(frontendGst);
+        } else if (product.gstRate !== undefined && product.gstRate !== null && product.gstRate !== '') {
+          gstRate = Number(product.gstRate);
+        } else {
+          gstRate = 18;
+        }
+        
+        // Get HSN Code
+        let frontendHsn = item.hsnCode ? String(item.hsnCode).trim() : '';
+        let productHsn = product.hsnCode ? String(product.hsnCode).trim() : '';
+        
+        if (frontendHsn !== '') {
+          hsnCode = frontendHsn;
+        } else if (productHsn !== '') {
+          hsnCode = productHsn;
+        } else {
+          hsnCode = '';
+        }
+      }
+
+      // Calculations
+      const taxableValue = Number(item.price) * Number(item.quantity);
+      const taxAmount = (taxableValue * gstRate) / 100;
+      const itemTotal = taxableValue + taxAmount;
+
+      totalTaxableAmount += taxableValue;
+      totalTaxAmount += taxAmount;
+
+      // Push to processedItems
       processedItems.push({
         product: product._id,
         productName: product.name,
         quantity: item.quantity,
         price: item.price,
-        subtotal: item.price * item.quantity
+        hsnCode: hsnCode,
+        gstRate: gstRate,
+        taxableValue: taxableValue,
+        taxAmount: taxAmount,
+        itemTotal: itemTotal,
+        subtotal: itemTotal
       });
     }
 
-    // Create sale without invoice number first
-    const creditAmount = Math.max(0, totalAmount - paidAmount);
-    const change = Math.max(0, paidAmount - totalAmount);
-    const isCredit = creditAmount > 0;
 
-    const sale = await Sale.create({
-      user: req.user.id,
-      invoiceNumber: `${req.userId}-${Math.random()}`, // Will update after getting _id
-      customerName: customer.name,
-      customer: {
-        name: customer.name,
-        mobile: customer.mobile,
-        address: customer.address || '',
-        email: customer.email || ''
-      },
-      items: processedItems,
-      totalAmount,
-      totalProfit,
-      paymentMethod,
-      paidAmount,
-      change,
-      isCredit,
-      creditAmount,
-      notes
-    });
+      // Create sale without invoice number first
+      const creditAmount = Math.max(0, totalAmount - paidAmount);
+      const change = Math.max(0, paidAmount - totalAmount);
+      const isCredit = creditAmount > 0;
 
-    // Generate Invoice Number using shop name and sale _id
-    const invoiceNumber = `${user.shopName.replaceAll(' ', '').substring(0, 4).toUpperCase()}${sale._id.toString().substring(6, 10).toUpperCase()}`;
-    
-    // Update sale with invoice number
-    sale.invoiceNumber = invoiceNumber;
-    await sale.save();
+      const sale = await Sale.create({
+        user: req.user.id,
+        invoiceNumber: `${req.userId}-${Math.random()}`, // Will update after getting _id
+        customerName: customer.name,
+        customer: {
+          name: customer.name,
+          mobile: customer.mobile,
+          address: customer.address || '',
+          email: customer.email || ''
+        },
+        items: processedItems,
+        totalAmount,
+        totalTaxableAmount,
+        totalTaxAmount,
+        totalProfit,
+        paymentMethod,
+        paidAmount,
+        change,
+        isCredit,
+        creditAmount,
+        isGstBill: isGstBill !== undefined ? isGstBill : true,
+        businessDetails: {
+          gstin: user.businessDetails?.gstin || '',
+          pan: user.businessDetails?.pan || '',
+          address: user.businessDetails?.businessAddress || '',
+          phone: user.businessDetails?.businessPhone || '',
+          email: user.businessDetails?.businessEmail || ''
+        }
+      });
 
-    const populatedSale = await sale.populate('items.product', 'name barcode');
+      // Generate Invoice Number using shop name and sale _id
+      const invoiceNumber = `${user.shopName.replaceAll(' ', '').substring(0, 4).toUpperCase()}${sale._id.toString().substring(6, 10).toUpperCase()}`;
 
-    res.status(201).json({
-      success: true,
-      data: populatedSale
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+      // Update sale with invoice number
+      sale.invoiceNumber = invoiceNumber;
+      await sale.save();
 
-// @route   GET /api/sales/stats/today
-// @desc    Get sales stats for today
-// @access  Private
-exports.getTodaySales = async (req, res, next) => {
-  try {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+      const populatedSale = await sale.populate('items.product', 'name barcode');
 
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+      res.status(201).json({
+        success: true,
+        data: populatedSale
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 
-    const sales = await Sale.find({
-      user: req.user.id,
-      createdAt: {
-        $gte: startOfDay,
-        $lte: endOfDay
-      }
-    });
+  // @route   GET /api/sales/stats/today
+  // @desc    Get sales stats for today
+  // @access  Private
+  exports.getTodaySales = async (req, res, next) => {
+    try {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
 
-    const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-    const totalTransactions = sales.length;
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
 
-    res.status(200).json({
-      success: true,
-      data: {
-        totalRevenue,
-        totalTransactions,
-        sales
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+      const sales = await Sale.find({
+        user: req.user.id,
+        createdAt: {
+          $gte: startOfDay,
+          $lte: endOfDay
+        }
+      });
 
-// @route   GET /api/sales/stats/dashboard
-// @desc    Get dashboard stats
-// @access  Private
-exports.getDashboardStats = async (req, res, next) => {
-  try {
-    const products = await Product.find({ user: req.user.id });
-    const totalProducts = products.length;
-    const lowStockProducts = products.filter(p => p.quantity <= p.minStock).length;
+      const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+      const totalTransactions = sales.length;
 
-    // Today's sales
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+      res.status(200).json({
+        success: true,
+        data: {
+          totalRevenue,
+          totalTransactions,
+          sales
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+  // @route   GET /api/sales/stats/dashboard
+  // @desc    Get dashboard stats
+  // @access  Private
+  exports.getDashboardStats = async (req, res, next) => {
+    try {
+      const products = await Product.find({ user: req.user.id });
+      const totalProducts = products.length;
+      const lowStockProducts = products.filter(p => p.quantity <= p.minStock).length;
 
-    const todaySales = await Sale.find({
-      user: req.user.id,
-      createdAt: {
-        $gte: startOfDay,
-        $lte: endOfDay
-      }
-    });
+      // Today's sales
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
 
-    const todayRevenue = todaySales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
 
-    res.status(200).json({
-      success: true,
-      data: {
-        totalProducts,
-        lowStockProducts,
-        todaySales: todaySales.length,
-        todayRevenue,
-        topProducts: products.slice(0, 5).sort((a, b) => b.quantity - a.quantity)
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+      const todaySales = await Sale.find({
+        user: req.user.id,
+        createdAt: {
+          $gte: startOfDay,
+          $lte: endOfDay
+        }
+      });
+
+      const todayRevenue = todaySales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          totalProducts,
+          lowStockProducts,
+          todaySales: todaySales.length,
+          todayRevenue,
+          topProducts: products.slice(0, 5).sort((a, b) => b.quantity - a.quantity)
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };

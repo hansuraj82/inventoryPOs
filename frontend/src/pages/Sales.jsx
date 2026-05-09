@@ -15,7 +15,7 @@ export default function Sales() {
   const [isSearching, setIsSearching] = useState(false);
   const debounceTimer = useRef(null);
   const { user } = useAuthStore();
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -31,13 +31,13 @@ export default function Sales() {
       setIsLoading(true);
       const response = await saleAPI.getAll(page, pageSize);
       const paginatedSales = response.data.data || [];
-      
+
       if (isLoadMore) {
         setPublicSales(prev => [...prev, ...paginatedSales]);
       } else {
         setPublicSales(paginatedSales);
       }
-      
+
       setCurrentPage(page);
       setTotalCount(response.data.totalCount || 0);
       setHasMore(page < response.data.totalPages);
@@ -50,7 +50,7 @@ export default function Sales() {
 
   const handleSearch = (query) => {
     setSearchQuery(query);
-    
+
     // Clear previous timer
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
@@ -92,20 +92,20 @@ export default function Sales() {
       setCurrentPage(1);
       setTotalCount(response.data.totalCount || 0);
       setHasMore(1 < response.data.totalPages);
-      
+
       if (response.data.count === 0) {
-        toast.info('No sales found matching your search');
+        toast.error('No sales found matching your search');
       }
     } catch (error) {
       console.error('Search error:', error);
-      
+
       // Handle specific error responses from backend
       if (error.response?.status === 400) {
         toast.error(error.response.data.message || 'Invalid search query. Please try with simpler text.');
       } else {
         toast.error('Failed to search sales');
       }
-      
+
       // Fallback: show all sales on search error
       setCurrentPage(1);
       setHasMore(true);
@@ -116,21 +116,39 @@ export default function Sales() {
   };
 
   const handlePrint = async (sale) => {
-    console.log(sale);
-    
     try {
-      await printInvoice(sale, user.shopName);
+      const businessDetails = {
+        gstin: user.businessDetails?.gstin || '',
+        pan: user.businessDetails?.pan || '',
+        address: user.businessDetails?.businessAddress || '',
+        phone: user.businessDetails?.businessPhone || '',
+        email: user.businessDetails?.businessEmail || '',
+        bankDetails: user.businessDetails?.bankName && user.businessDetails?.accountNumber
+          ? `${user.businessDetails.bankName}, Acc: ${user.businessDetails.accountNumber}, IFSC: ${user.businessDetails.ifscCode || 'N/A'}`
+          : ''
+      };
+      await printInvoice(sale, user.shopName, businessDetails);
       toast.success('Invoice sent to printer');
     } catch (error) {
       console.log(`error is ${error}`);
-      
+
       toast.error('Failed to print invoice');
     }
   };
 
   const handleDownload = async (sale) => {
     try {
-      await downloadInvoice(sale, user.shopName);
+      const businessDetails = {
+        gstin: user.businessDetails?.gstin || '',
+        pan: user.businessDetails?.pan || '',
+        address: user.businessDetails?.businessAddress || '',
+        phone: user.businessDetails?.businessPhone || '',
+        email: user.businessDetails?.businessEmail || '',
+        bankDetails: user.businessDetails?.bankName && user.businessDetails?.accountNumber
+          ? `${user.businessDetails.bankName}, Acc: ${user.businessDetails.accountNumber}, IFSC: ${user.businessDetails.ifscCode || 'N/A'}`
+          : ''
+      };
+      await downloadInvoice(sale, user.shopName, businessDetails);
       toast.success('Invoice downloaded');
     } catch (error) {
       toast.error('Failed to download invoice');
@@ -149,7 +167,7 @@ export default function Sales() {
     <Layout>
       <div className="mb-6 md:mb-8">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 md:mb-6">Sales History</h1>
-        
+
         {/* Search Bar */}
         <div className="relative">
           <input
@@ -167,7 +185,7 @@ export default function Sales() {
             </div>
           )}
         </div>
-        
+
         {searchQuery && (
           <p className="text-xs md:text-sm text-gray-600 mt-2">
             Found {sales.length} sale(s)
@@ -232,7 +250,7 @@ export default function Sales() {
                         </>
                       )}
                     </div>
-                    
+
                     {/* Date & Items */}
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Date</p>
@@ -276,36 +294,56 @@ export default function Sales() {
               {expandedId === sale._id && (
                 <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t">
                   <h3 className="font-semibold text-gray-900 mb-3 text-sm md:text-base">Items Sold</h3>
-                  <div className="space-y-2 mb-4 md:mb-6">
-                    {sale.items.map((item) => (
-                      <div
-                        key={item._id}
-                        className="flex justify-between p-2 md:p-3 bg-gray-50 rounded text-xs md:text-sm gap-2"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 truncate">
-                            {item.productName}
-                          </p>
-                          <p className="text-xs text-gray-600">
-                            Qty: {item.quantity} × {formatCurrency(item.price)}
-                          </p>
-                        </div>
-                        <p className="font-semibold text-gray-900 flex-shrink-0">
-                          {formatCurrency(item.subtotal)}
-                        </p>
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto mb-4 md:mb-6">
+                    <table className="w-full text-xs md:text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-300 bg-gray-100">
+                          <th className="text-left p-2 font-semibold text-gray-700">Product</th>
+                          <th className="text-center p-2 font-semibold text-gray-700">HSN</th>
+                          <th className="text-center p-2 font-semibold text-gray-700">Qty</th>
+                          <th className="text-right p-2 font-semibold text-gray-700">Rate</th>
+                          <th className="text-center p-2 font-semibold text-gray-700">GST%</th>
+                          <th className="text-right p-2 font-semibold text-gray-700">Tax</th>
+                          <th className="text-right p-2 font-semibold text-gray-700">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sale.items.map((item, idx) => (
+                          <tr key={idx} className="border-b border-gray-200 hover:bg-blue-50">
+                            <td className="p-2 text-gray-900 font-medium truncate">{item.productName}</td>
+                            <td className="p-2 text-center text-gray-700">{item.hsnCode || '-'}</td>
+                            <td className="p-2 text-center text-gray-700">{item.quantity}</td>
+                            <td className="p-2 text-right text-gray-700">{formatCurrency(item.price)}</td>
+                            <td className="p-2 text-center text-indigo-600 font-semibold">{item.gstRate}%</td>
+                            <td className="p-2 text-right text-green-600 font-semibold">{formatCurrency(item.taxAmount || 0)}</td>
+                            <td className="p-2 text-right text-gray-900 font-bold">{formatCurrency(item.itemTotal || item.subtotal)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
 
                   <div className="bg-gray-50 p-3 md:p-4 rounded mb-4 md:mb-6 text-xs md:text-sm space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Total:</span>
+                      <span className="text-gray-600">Subtotal (Taxable):</span>
                       <span className="font-semibold">
+                        {formatCurrency(sale.totalTaxableAmount || 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total Tax:</span>
+                      <span className="font-semibold text-green-600">
+                        {formatCurrency(sale.totalTaxAmount || 0)}
+                      </span>
+                    </div>
+                    <div className="border-t border-gray-300 pt-2 flex justify-between">
+                      <span className="text-gray-700 font-semibold">Total Amount:</span>
+                      <span className="font-bold text-indigo-600">
                         {formatCurrency(sale.totalAmount)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Paid:</span>
+                      <span className="text-gray-600">Amount Paid:</span>
                       <span className="font-semibold">
                         {formatCurrency(sale.paidAmount)}
                       </span>
@@ -318,8 +356,14 @@ export default function Sales() {
                     )}
                     {sale.change > 0 && (
                       <div className="flex justify-between text-green-600 font-semibold">
-                        <span>Change:</span>
+                        <span>Change Given:</span>
                         <span>{formatCurrency(sale.change)}</span>
+                      </div>
+                    )}
+                    {sale.isCredit && sale.creditAmount > 0 && (
+                      <div className="border-t border-red-300 pt-2 flex justify-between bg-red-50 p-2 rounded">
+                        <span className="text-red-700 font-semibold">Amount Due:</span>
+                        <span className="font-bold text-red-600">{formatCurrency(sale.creditAmount)}</span>
                       </div>
                     )}
                   </div>
@@ -342,7 +386,7 @@ export default function Sales() {
               )}
             </div>
           ))}
-          
+
           {/* Pagination Info & Load More Button */}
           <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-6 px-4 py-3 bg-gray-50 rounded-lg">
             <p className="text-xs md:text-sm text-gray-600">
