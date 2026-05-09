@@ -374,7 +374,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(255, 255, 255);
   doc.text('HSN/SAC', taxSummaryLeftX + 3, currentY + 4);
-  doc.text('TAXABLE', taxSummaryLeftX + 38, currentY + 4, { align: 'left' });
+  doc.text('TAXABLE', taxSummaryLeftX + 38, currentY + 4, { align: 'center' });
   doc.text('GST%', taxSummaryLeftX + 60, currentY + 4, { align: 'center' });
   doc.text('TAX AMT', taxSummaryLeftX + taxSummaryLeftWidth - 10, currentY + 4, { align: 'center' });
 
@@ -411,7 +411,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     const rateStr = Array.from(rates).join(',');
     doc.setFontSize(7);
     doc.text(hsn.substring(0, 8), taxSummaryLeftX + 3, tableY);
-    doc.text(`Rs ${hsnTaxable.toFixed(0)}`, taxSummaryLeftX + 38, tableY, { align: 'left' });
+    doc.text(`Rs ${hsnTaxable.toFixed(0)}`, taxSummaryLeftX + 38, tableY, { align: 'center' });
     doc.text(rateStr, taxSummaryLeftX + 60, tableY, { align: 'center' });
     doc.text(`Rs ${hsnTax.toFixed(0)}`, taxSummaryLeftX + taxSummaryLeftWidth - 10, tableY, { align: 'center' });
     
