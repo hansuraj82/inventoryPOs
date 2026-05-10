@@ -15,6 +15,10 @@ export default function Register() {
     password: '',
     passwordConfirm: ''
   });
+
+  React.useEffect(() => {
+    document.title = 'Register - Dukanbill';
+  }, []);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 

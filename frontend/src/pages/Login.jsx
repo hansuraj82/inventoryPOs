@@ -10,6 +10,10 @@ export default function Login() {
     email: '',
     password: ''
   });
+
+  React.useEffect(() => {
+    document.title = 'Login - Dukanbill';
+  }, []);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 

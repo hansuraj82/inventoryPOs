@@ -14,6 +14,10 @@ export default function Dashboard() {
   const [detailsModal, setDetailsModal] = useState({ isOpen: false, type: null, data: [] });
 
   useEffect(() => {
+    document.title = 'Dashboard - Dukanbill';
+  }, []);
+
+  useEffect(() => {
     const fetchStats = async () => {
       try {
         setIsLoading(true);

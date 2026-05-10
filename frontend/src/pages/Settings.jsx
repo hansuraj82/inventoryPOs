@@ -7,6 +7,10 @@ export default function Settings() {
   const { user, updateProfile, changePassword, isLoading } = useAuthStore();
   
   const [activeTab, setActiveTab] = useState('profile');
+
+  useEffect(() => {
+    document.title = 'Settings - Dukanbill';
+  }, []);
   
   const [profileFormData, setProfileFormData] = useState({
     name: '',

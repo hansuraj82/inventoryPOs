@@ -16,6 +16,10 @@ export default function Sales() {
   const debounceTimer = useRef(null);
   const { user } = useAuthStore();
 
+  useEffect(() => {
+    document.title = 'Sales - Dukanbill';
+  }, []);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);

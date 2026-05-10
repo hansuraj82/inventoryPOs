@@ -14,6 +14,10 @@ export default function POS() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
+
+  useEffect(() => {
+    document.title = 'POS - Dukanbill';
+  }, []);
   const [scannedBarcode, setScannedBarcode] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash');

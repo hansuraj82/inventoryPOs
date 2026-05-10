@@ -12,6 +12,10 @@ export default function Products() {
   const [showForm, setShowForm] = useState(false);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [editingId, setEditingId] = useState(null);
+
+  useEffect(() => {
+    document.title = 'Products - Dukanbill';
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [scannedBarcode, setScannedBarcode] = useState('');
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, product: null });
