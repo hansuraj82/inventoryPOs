@@ -214,9 +214,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     const coreName = finalWords[0];
     return coreName.charAt(0).toUpperCase() + coreName.slice(1);
   };
-  console.log('df',getCoreShopName(shopName));
   
-
   doc.text(getCoreShopName(shopName), MARGIN_LEFT, currentY + 5);
 
   // Invoice status badge
