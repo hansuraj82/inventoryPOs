@@ -90,6 +90,6 @@ export function usePWAInstall() {
     triggerInstall,
     dismissInstallPrompt,
     isStandalone: isStandalone(),
-    isPWASupported: 'serviceWorker' in navigator && 'PushManager' in window
+    isPWASupported: 'serviceWorker' in navigator
   };
 }
