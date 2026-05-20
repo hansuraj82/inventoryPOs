@@ -184,24 +184,49 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.setFont('helvetica', 'bolditalic');
   doc.setFontSize(20);
   doc.setTextColor(...COLORS.jk);
-  const initialsOfShopName = shopName
-  .trim()
-  .split(' ')
-  .map(word => word[0])
-  .join('')
-  .substring(0, 2)
-  .toUpperCase();
 
-  doc.text(initialsOfShopName.toUpperCase(), MARGIN_LEFT, currentY + 5);
+
+  const getCoreShopName = (shopName) => {
+    if (!shopName) return "";
+
+    // 1. Words to completely ignore/remove if they are part of a multi-word name
+    const stopWords = new Set([
+      "new", "old", "the", "shree", "sri", "shri", "m/s", "ms",
+      "mobile", "mobiles", "computer", "computers", "shop", "store",
+      "stores", "electronics", "communication", "communications",
+      "agency", "agencies", "enterprise", "enterprises", "bazar", "mart"
+    ]);
+
+    // Clean the string and split into individual words
+    const words = shopName
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove symbols/punctuation
+      .split(/\s+/);
+
+    // 2. Filter out the generic stop words
+    const meaningfulWords = words.filter(word => !stopWords.has(word));
+
+    // 3. Fallback: If filtering emptied the array (e.g., name was just "The Mobile Shop"), use original words
+    const finalWords = meaningfulWords.length > 0 ? meaningfulWords : words;
+
+    // 4. Return the first remaining core word capitalized cleanly
+    const coreName = finalWords[0];
+    return coreName.charAt(0).toUpperCase() + coreName.slice(1);
+  };
+  console.log('df',getCoreShopName(shopName));
+  
+
+  doc.text(getCoreShopName(shopName), MARGIN_LEFT, currentY + 5);
 
   // Invoice status badge
   const isPaid = !(saleData.isCredit && saleData.creditAmount > 0);
   const badgeX = RIGHT - 38;
   const badgeY = currentY;
-  
+
   doc.setFillColor(isPaid ? 220 : 254, isPaid ? 253 : 242, isPaid ? 244 : 242);
   doc.roundedRect(badgeX, badgeY - 1, 38, 7, 1, 1, 'F');
-  
+
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(isPaid ? 21 : 153, isPaid ? 128 : 27, isPaid ? 61 : 27);
@@ -211,7 +236,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
   // Business details section
   doc.setFillColor(...COLORS.lightBg);
-  doc.roundedRect(MARGIN_LEFT, currentY -2 , CONTENT_WIDTH, 20, 1, 1, 'F');
+  doc.roundedRect(MARGIN_LEFT, currentY - 2, CONTENT_WIDTH, 20, 1, 1, 'F');
 
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(8);
@@ -219,8 +244,8 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
   let detailY = currentY + 2;
   const detailLineHeight = 3.7;
-doc.text(`${shopName}`, MARGIN_LEFT + 3, detailY);
-detailY += detailLineHeight;
+  doc.text(`${shopName}`, MARGIN_LEFT + 3, detailY);
+  detailY += detailLineHeight;
   if (businessDetails.gstin) {
     doc.text(`GSTIN: ${businessDetails.gstin}`, MARGIN_LEFT + 3, detailY);
     detailY += detailLineHeight;
@@ -336,8 +361,7 @@ detailY += detailLineHeight;
   doc.setTextColor(...COLORS.primary);
 
   const rowHeight = 7;
-  console.log(saleData);
-  
+
 
   (saleData.items || []).forEach((item, index) => {
     checkPageBreak(rowHeight + 2);
@@ -361,7 +385,7 @@ detailY += detailLineHeight;
     doc.setFont('helvetica', 'bolditalic');
     const itemLines = doc.splitTextToSize((item.productName || 'N/A').toUpperCase(), colWidths.item - 3);
     const itemHeight = itemLines.length * 3;
-    doc.text(itemLines, colX + 2, currentY + 4, );
+    doc.text(itemLines, colX + 2, currentY + 4,);
     doc.setFontSize(6);
     doc.setFont('helvetica', 'italic');
     colX += colWidths.item;
@@ -376,7 +400,7 @@ detailY += detailLineHeight;
 
     // Quantity
     doc.setTextColor(...COLORS.primary);
-    doc.text(itemQty.toString(), colX + colWidths.qty / 2 +1, currentY + 4, { align: 'right' });
+    doc.text(itemQty.toString(), colX + colWidths.qty / 2 + 1, currentY + 4, { align: 'right' });
     colX += colWidths.qty;
 
     // Rate
@@ -408,36 +432,37 @@ detailY += detailLineHeight;
   currentY += 2;
 
   // =================== TAX SUMMARY & AMOUNT SECTION ===================
-  checkPageBreak(40);
+  checkPageBreak(60);
 
   const { totalTaxable, totalTax, grandTotal, taxByRate } = calculateGSTBreakdown(saleData.items);
 
   // Left section - Tax breakdown table
   const taxSummaryLeftX = MARGIN_LEFT;
   const taxSummaryLeftWidth = CONTENT_WIDTH * 0.5 - 1;
-  
+
   // Right section - Amount summary
   const taxSummaryRightX = MARGIN_LEFT + CONTENT_WIDTH * 0.5 + 1;
   const taxSummaryRightWidth = CONTENT_WIDTH * 0.5 - 2;
 
   // ===== LEFT: TAX BREAKDOWN TABLE =====
-  const taxRatesCount = Object.keys(taxByRate).length;
-  const taxBoxHeight = 28 + (taxRatesCount > 0 ? Math.max(taxRatesCount * 5, 12) : 12);
-  
+  const taxRatesCount = Object.keys(saleData.items).length;
+
+  const taxBoxHeight = 12 + (taxRatesCount > 0 ? Math.max(taxRatesCount * 5, 20) : 12);
+
   doc.setFillColor(...COLORS.lightBg);
   doc.roundedRect(taxSummaryLeftX, currentY, taxSummaryLeftWidth, taxBoxHeight, 1, 1, 'F');
 
   // Tax table header
   doc.setFillColor(79, 70, 229);
   doc.rect(taxSummaryLeftX + 1, currentY + 1, taxSummaryLeftWidth - 2, 5, 'F');
-  
+
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(255, 255, 255);
   doc.text('HSN/SAC', taxSummaryLeftX + 3, currentY + 4.5);
   doc.text('TAXABLE VAL', taxSummaryLeftX + 45, currentY + 4.5, { align: 'right' });
   doc.text('GST%', taxSummaryLeftX + 60, currentY + 4.5, { align: 'center' });
-  doc.text('TAX AMT', taxSummaryLeftX + taxSummaryLeftWidth -8, currentY + 4.5, { align: 'right' });
+  doc.text('TAX AMT', taxSummaryLeftX + taxSummaryLeftWidth - 8, currentY + 4.5, { align: 'right' });
 
   let tableY = currentY + 10;
   doc.setTextColor(...COLORS.primary);
@@ -472,17 +497,17 @@ detailY += detailLineHeight;
     const rateStr = Array.from(rates).join(',');
     doc.setFontSize(7);
     doc.text(hsn.substring(0, 8), taxSummaryLeftX + 3, tableY);
-    doc.text(`${hsnTaxable.toFixed(0)}`, taxSummaryLeftX + 42 , tableY, { align: 'right' });
+    doc.text(`${hsnTaxable.toFixed(0)}`, taxSummaryLeftX + 42, tableY, { align: 'right' });
     doc.text(rateStr, taxSummaryLeftX + 60, tableY, { align: 'center' });
-    doc.text(`${hsnTax.toFixed(0)}`, taxSummaryLeftX + taxSummaryLeftWidth - 10 , tableY, { align: 'right' });
-    
+    doc.text(`${hsnTax.toFixed(0)}`, taxSummaryLeftX + taxSummaryLeftWidth - 10, tableY, { align: 'right' });
+
     tableY += 5;
   });
 
   // ===== RIGHT: AMOUNT SUMMARY =====
   doc.setFillColor(...COLORS.accent);
   doc.roundedRect(taxSummaryRightX, currentY, taxSummaryRightWidth, 6, 1, 1, 'F');
-  
+
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(255, 255, 255);
@@ -502,7 +527,7 @@ detailY += detailLineHeight;
   doc.text(`Rs ${totalTaxable.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
 
   summaryY += 5;
-  
+
   // Total Tax
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(...COLORS.muted);
@@ -512,14 +537,14 @@ detailY += detailLineHeight;
   doc.text(`Rs ${totalTax.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
 
   summaryY += 7;
-  
+
   // Divider
   doc.setDrawColor(...COLORS.accent);
   doc.setLineWidth(0.5);
   doc.line(taxSumLabelX, summaryY - 2, taxSumValueX, summaryY - 2);
 
   summaryY += 3;
-  
+
   // Grand Total
   doc.setFont('helvetica', 'bolditalic');
   doc.setFontSize(10);
@@ -527,10 +552,10 @@ detailY += detailLineHeight;
   doc.text('GRAND TOTAL:', taxSumLabelX, summaryY);
   doc.text(`Rs ${grandTotal.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
 
-  currentY += Math.max(taxBoxHeight, 28) + 3;
+  currentY += Math.max(taxBoxHeight, 20) + 3;
 
   // =================== AMOUNT IN WORDS ===================
-  checkPageBreak(8);
+  checkPageBreak(40);
 
   doc.setFillColor(...COLORS.lightBg);
   doc.roundedRect(MARGIN_LEFT, currentY, CONTENT_WIDTH, 7, 1, 1, 'F');
@@ -557,7 +582,7 @@ detailY += detailLineHeight;
   // Payment box
   doc.setFillColor(...COLORS.lightBg);
   doc.roundedRect(MARGIN_LEFT, currentY, CONTENT_WIDTH / 2 - 2, 14, 1, 1, 'F');
-  
+
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.accent);
@@ -576,7 +601,7 @@ detailY += detailLineHeight;
   // Summary box
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(MARGIN_LEFT + CONTENT_WIDTH / 2 + 2, currentY, CONTENT_WIDTH / 2 - 2, 14, 1, 1, 'F');
-  
+
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.accent);
@@ -603,7 +628,7 @@ detailY += detailLineHeight;
     checkPageBreak(7);
     doc.setFillColor(254, 242, 242);
     doc.roundedRect(MARGIN_LEFT, currentY, CONTENT_WIDTH, 6, 1, 1, 'F');
-    
+
     doc.setDrawColor(239, 68, 68);
     doc.setLineWidth(0.5);
     doc.roundedRect(MARGIN_LEFT, currentY, CONTENT_WIDTH, 6, 1, 1);
@@ -622,7 +647,7 @@ detailY += detailLineHeight;
     checkPageBreak(10);
     doc.setFillColor(248, 250, 252);
     doc.roundedRect(MARGIN_LEFT, currentY, CONTENT_WIDTH, 1, 0, 0, 'F');
-    
+
     currentY += 2;
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bolditalic');
@@ -649,13 +674,13 @@ detailY += detailLineHeight;
 
   // Signature section
   const signatureBoxWidth = CONTENT_WIDTH / 3;
-  
+
   // For Bank details
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.accent);
   doc.text('BANK DETAILS', MARGIN_LEFT, footerY);
-  
+
   doc.setFontSize(6);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(...COLORS.primary);
@@ -670,7 +695,7 @@ detailY += detailLineHeight;
   doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.accent);
   doc.text('AUTHORIZED SIGNATORY', RIGHT - 40, footerY);
-  
+
   doc.setLineWidth(0.5);
   doc.setDrawColor(...COLORS.muted);
   doc.line(RIGHT - 40, footerY + 8, RIGHT, footerY + 8);
@@ -688,7 +713,7 @@ detailY += detailLineHeight;
   if (pageCount > 1) {
     doc.setFontSize(6);
     doc.setTextColor(...COLORS.muted);
-    doc.text(`Page ${doc.internal.pages.length} of ${pageCount}`, RIGHT, pageHeight - 3, { align: 'right' });
+    doc.text(`Page ${doc.internal.pages.length - 1} of ${pageCount}`, RIGHT, pageHeight - 3, { align: 'right' });
   }
 
   return doc;
