@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/store';
 import PrivateRoute from './components/PrivateRoute';
 import FullPageLoader from './components/FullPageLoader';
+import PWAInstallBanner from './components/PWAInstallBanner';
 
 // Lazy load all pages
 const Login = React.lazy(() => import('./pages/Login'));
@@ -31,6 +32,9 @@ function App() {
           }
         }}
       />
+
+      {/* PWA Install Banner */}
+      <PWAInstallBanner />
 
       <Routes>
         <Route

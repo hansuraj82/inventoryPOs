@@ -7,6 +7,7 @@ export default function Settings() {
   const { user, updateProfile, changePassword, isLoading } = useAuthStore();
   
   const [activeTab, setActiveTab] = useState('profile');
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     document.title = 'Settings - Dukanbill';
@@ -63,6 +64,8 @@ export default function Settings() {
         ifscCode: user.businessDetails?.ifscCode || '',
         upiId: user.businessDetails?.upiId || ''
       });
+      
+      setDataLoading(false);
     }
   }, [user]);
 
@@ -238,44 +241,87 @@ export default function Settings() {
             <p className="text-gray-600 mt-2">Manage your account settings and security</p>
           </div>
 
-          {/* Tab Navigation */}
-          <div className="flex gap-4 mb-8 border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('profile')}
-              className={`pb-4 px-4 font-medium transition-colors ${
-                activeTab === 'profile'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Edit Profile
-            </button>
-            <button
-              onClick={() => setActiveTab('password')}
-              className={`pb-4 px-4 font-medium transition-colors ${
-                activeTab === 'password'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Change Password
-            </button>
-            <button
-              onClick={() => setActiveTab('business')}
-              className={`pb-4 px-4 font-medium transition-colors ${
-                activeTab === 'business'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Business Details
-            </button>
-          </div>
+          {dataLoading ? (
+            // Loading Skeleton
+            <div className="space-y-6">
+              {/* Tab Skeleton */}
+              <div className="flex gap-4 mb-8 border-b border-gray-200">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="pb-4 px-4 w-24 h-6 bg-gradient-to-r from-gray-200 to-gray-100 rounded animate-pulse"
+                  />
+                ))}
+              </div>
 
-          {/* Edit Profile Tab */}
-          {activeTab === 'profile' && (
-            <div className="bg-white rounded-lg shadow p-6 md:p-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Edit Profile</h2>
+              {/* Content Skeleton */}
+              <div className="bg-white rounded-lg shadow p-6 md:p-8">
+                {/* Title Skeleton */}
+                <div className="mb-8">
+                  <div className="h-6 w-48 bg-gradient-to-r from-gray-200 to-gray-100 rounded animate-pulse mb-6" />
+                  
+                  {/* Form Fields Skeleton */}
+                  <div className="space-y-6">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i}>
+                        {/* Label Skeleton */}
+                        <div className="h-4 w-32 bg-gradient-to-r from-gray-200 to-gray-100 rounded animate-pulse mb-3" />
+                        {/* Input Skeleton */}
+                        <div className="h-10 w-full bg-gradient-to-r from-gray-100 to-gray-50 rounded-lg animate-pulse" />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Button Skeleton */}
+                  <div className="mt-8 h-10 w-full bg-gradient-to-r from-gray-200 to-gray-100 rounded-lg animate-pulse" />
+                </div>
+              </div>
+            </div>
+          ) : (
+            // Actual Content
+            <>
+              {/* Tab Navigation */}
+              <div className="flex gap-4 mb-8 border-b border-gray-200">
+                <button
+                  onClick={() => setActiveTab('profile')}
+                  className={`pb-4 px-4 font-medium transition-colors ${
+                    activeTab === 'profile'
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Edit Profile
+                </button>
+                <button
+                  onClick={() => setActiveTab('password')}
+                  className={`pb-4 px-4 font-medium transition-colors ${
+                    activeTab === 'password'
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Change Password
+                </button>
+                <button
+                  onClick={() => setActiveTab('business')}
+                  className={`pb-4 px-4 font-medium transition-colors ${
+                    activeTab === 'business'
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Business Details
+                </button>
+              </div>
+            </>
+          )}
+
+          {!dataLoading && (
+            <>
+              {/* Edit Profile Tab */}
+              {activeTab === 'profile' && (
+                <div className="bg-white rounded-lg shadow p-6 md:p-8">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Edit Profile</h2>
               
               <form onSubmit={handleProfileSubmit} className="space-y-6">
                 {/* Name Field */}
@@ -652,6 +698,8 @@ export default function Settings() {
                 </button>
               </form>
             </div>
+          )}
+            </>
           )}
         </div>
       </div>

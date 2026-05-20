@@ -249,6 +249,22 @@ exports.updateProduct = async (req, res, next) => {
       updateData.minStock = Number(req.body.minStock);
     }
 
+    // Track price history if prices are being changed
+    if (req.body.sellingPrice || req.body.costPrice) {
+      const priceChange = {
+        oldSellingPrice: product.sellingPrice,
+        newSellingPrice: req.body.sellingPrice ? Number(req.body.sellingPrice) : product.sellingPrice,
+        oldCostPrice: product.costPrice,
+        newCostPrice: req.body.costPrice ? Number(req.body.costPrice) : product.costPrice,
+        changedAt: new Date()
+      };
+      
+      if (!updateData.priceHistory) {
+        updateData.priceHistory = [];
+      }
+      updateData.priceHistory = [priceChange, ...(product.priceHistory || [])];
+    }
+
     product = await Product.findByIdAndUpdate(
       req.params.id,
       updateData,

@@ -55,6 +55,18 @@ const productSchema = new mongoose.Schema({
     type: Number,
     default: 5
   },
+  priceHistory: [
+    {
+      oldSellingPrice: Number,
+      newSellingPrice: Number,
+      oldCostPrice: Number,
+      newCostPrice: Number,
+      changedAt: {
+        type: Date,
+        default: Date.now
+      }
+    }
+  ],
   createdAt: {
     type: Date,
     default: Date.now

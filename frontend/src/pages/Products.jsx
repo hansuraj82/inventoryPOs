@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
 import BarcodeScanner from '../components/BarcodeScanner';
+import PriceHistoryModal from '../components/PriceHistoryModal';
 import { productAPI } from '../services/api';
 import { debounce, formatCurrency } from '../utils/helpers';
 import { ProductTableSkeleton, ProductCardSkeleton } from '../components/Skeletons';
@@ -12,6 +13,7 @@ export default function Products() {
   const [showForm, setShowForm] = useState(false);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [priceHistoryModal, setPriceHistoryModal] = useState({ isOpen: false, product: null });
 
   useEffect(() => {
     document.title = 'Products - Dukanbill';
@@ -215,6 +217,10 @@ export default function Products() {
     });
     setEditingId(product._id);
     setShowForm(true);
+  };
+
+  const handleViewPriceHistory = (product) => {
+    setPriceHistoryModal({ isOpen: true, product });
   };
 
   const handleDelete = async (id) => {
@@ -539,14 +545,21 @@ export default function Products() {
                     <td className="px-3 lg:px-4 py-3 font-mono text-xs">{product.barcode || '-'}</td>
                     <td className="px-3 lg:px-4 py-3 text-center space-x-2">
                       <button
+                        onClick={() => handleViewPriceHistory(product)}
+                        className="p-2 bg-blue-100 text-blue-600 rounded text-xs font-medium hover:bg-blue-200"
+                        title="View Price History"
+                      >
+                        📈 Price
+                      </button>
+                      <button
                         onClick={() => handleEdit(product)}
-                        className="flex-1 p-2 bg-indigo-100 text-indigo-600 rounded text-xs font-medium hover:bg-indigo-200"
+                        className="p-2 bg-indigo-100 text-indigo-600 rounded text-xs font-medium hover:bg-indigo-200"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(product._id)}
-                        className="flex-1 p-2 bg-red-100 text-red-600 rounded text-xs font-medium hover:bg-red-200"
+                        className="p-2 bg-red-100 text-red-600 rounded text-xs font-medium hover:bg-red-200"
                       >
                         Delete
                       </button>
@@ -582,6 +595,12 @@ export default function Products() {
                   )}
                 </div>
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => handleViewPriceHistory(product)}
+                    className="flex-1 py-2 bg-blue-100 text-blue-600 rounded text-xs font-medium hover:bg-blue-200"
+                  >
+                    📈 Price
+                  </button>
                   <button
                     onClick={() => handleEdit(product)}
                     className="flex-1 py-2 bg-indigo-100 text-indigo-600 rounded text-xs font-medium hover:bg-indigo-200"
@@ -623,6 +642,13 @@ export default function Products() {
           onClose={() => setShowBarcodeScanner(false)}
         />
       )}
+
+      {/* Price History Modal */}
+      <PriceHistoryModal
+        product={priceHistoryModal.product}
+        isOpen={priceHistoryModal.isOpen}
+        onClose={() => setPriceHistoryModal({ isOpen: false, product: null })}
+      />
 
       {/* Delete Confirmation Modal */}
       {deleteModal.isOpen && deleteModal.product && (
