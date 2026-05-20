@@ -187,33 +187,52 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
 
   const getCoreShopName = (shopName) => {
-    if (!shopName) return "";
+  if (!shopName) return "";
 
-    // 1. Words to completely ignore/remove if they are part of a multi-word name
-    const stopWords = new Set([
-      "new", "old", "the", "shree", "sri", "shri", "m/s", "ms",
-      "mobile", "mobiles", "computer", "computers", "shop", "store",
-      "stores", "electronics", "communication", "communications",
-      "agency", "agencies", "enterprise", "enterprises", "bazar", "mart"
-    ]);
+  const stopWords = new Set([
+    "new", "old", "the", "shree", "sri", "shri", "m/s", "ms",
+    "mobile", "mobiles", "computer", "computers", "shop", "store", 
+    "stores", "electronics", "communication", "communications", 
+    "agency", "agencies", "enterprise", "enterprises", "bazar", "mart"
+  ]);
 
-    // Clean the string and split into individual words
-    const words = shopName
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove symbols/punctuation
-      .split(/\s+/);
+  // Clean the string and split into individual words
+  const words = shopName
+    .trim()
+    .replace(/[^a-zA-Z0-9\s]/g, '') // Remove symbols
+    .split(/\s+/)
+    .filter(Boolean); // Remove empty spaces
 
-    // 2. Filter out the generic stop words
-    const meaningfulWords = words.filter(word => !stopWords.has(word));
+  // Filter out the generic stop words
+  const filteredWords = words.filter(word => !stopWords.has(word.toLowerCase()));
 
-    // 3. Fallback: If filtering emptied the array (e.g., name was just "The Mobile Shop"), use original words
-    const finalWords = meaningfulWords.length > 0 ? meaningfulWords : words;
+  let finalName = "";
 
-    // 4. Return the first remaining core word capitalized cleanly
-    const coreName = finalWords[0];
-    return coreName.charAt(0).toUpperCase() + coreName.slice(1);
-  };
+  // CASE 1: If filtering left us with nothing (e.g., "The Mobile Shop")
+  if (filteredWords.length === 0) {
+    finalName = words[0]; 
+  } 
+  // CASE 2: If the core name is just a single letter (e.g., "V Mart", "D Mart")
+  else if (filteredWords[0].length === 1 && words.length > 1) {
+    // Find where that single letter is in the original name, and grab it + the next word
+    const singleLetterIdx = words.findIndex(w => w.toLowerCase() === filteredWords[0].toLowerCase());
+    if (singleLetterIdx !== -1 && words[singleLetterIdx + 1]) {
+      finalName = `${words[singleLetterIdx]} ${words[singleLetterIdx + 1]}`;
+    } else {
+      finalName = filteredWords[0];
+    }
+  } 
+  // CASE 3: Normal operation (e.g., "NEW ADI MOBILE" -> "Adi")
+  else {
+    finalName = filteredWords[0];
+  }
+
+  // Capitalize nicely (handles both single words and two-word pairs like "V Mart")
+  return finalName
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
   
   doc.text(getCoreShopName(shopName), MARGIN_LEFT, currentY + 5);
 
