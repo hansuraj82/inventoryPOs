@@ -233,7 +233,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 };
-  
+
   doc.text(getCoreShopName(shopName), MARGIN_LEFT, currentY + 5);
 
   // Invoice status badge
