@@ -754,7 +754,7 @@ export const printInvoice = async (saleData, shopName, businessDetails = {}) => 
 export const downloadInvoice = async (saleData, shopName, businessDetails = {}) => {
   const doc = await generateInvoicePDF(saleData, shopName, businessDetails);
   const date = new Date(saleData.createdAt).toLocaleDateString('en-IN');
-  const fileName = `GST_Invoice_${saleData.invoiceNumber || date}_${saleData._id.substring(0, 8)}.pdf`;
+  const fileName = `${saleData.invoiceNumber || date}_${saleData.customer?.name}.pdf`;
   doc.save(fileName);
 };
 
