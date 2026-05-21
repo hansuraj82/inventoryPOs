@@ -233,8 +233,6 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ');
   };
-  
-  console.log(getCoreShopName(shopName));
 
 
   doc.text(getCoreShopName(shopName), MARGIN_LEFT, currentY + 5);
@@ -402,7 +400,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
     // Item name with text wrapping
     doc.setTextColor(...COLORS.primary);
-    doc.setFont('helvetica', 'bolditalic');
+    doc.setFont('helvetica', 'bold');
     const itemLines = doc.splitTextToSize((item.productName || 'N/A').toUpperCase(), colWidths.item - 3);
     const itemHeight = itemLines.length * 3;
     doc.text(itemLines, colX + 2, currentY + 4,);
@@ -517,9 +515,9 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     const rateStr = Array.from(rates).join(',');
     doc.setFontSize(7);
     doc.text(hsn.substring(0, 8), taxSummaryLeftX + 3, tableY);
-    doc.text(`${hsnTaxable.toFixed(0)}`, taxSummaryLeftX + 42, tableY, { align: 'right' });
+    doc.text(`${hsnTaxable.toFixed(2)}`, taxSummaryLeftX + 42, tableY, { align: 'right' });
     doc.text(rateStr, taxSummaryLeftX + 60, tableY, { align: 'center' });
-    doc.text(`${hsnTax.toFixed(0)}`, taxSummaryLeftX + taxSummaryLeftWidth - 10, tableY, { align: 'right' });
+    doc.text(`${hsnTax.toFixed(2)}`, taxSummaryLeftX + taxSummaryLeftWidth - 10, tableY, { align: 'right' });
 
     tableY += 5;
   });

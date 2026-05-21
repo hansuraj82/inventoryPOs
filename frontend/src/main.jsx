@@ -8,7 +8,6 @@ import './index.css';
 const updateSW = registerSW({
   immediate: true,
   onRegistered(r) {
-    console.log('✅ PWA Service Worker registered');
     if (r) {
       setInterval(() => {
         r.update();
@@ -16,7 +15,6 @@ const updateSW = registerSW({
     }
   },
   onRegisterError(error) {
-    console.error('❌ PWA Service Worker registration failed:', error);
   },
   onNeedRefresh() {
     console.log('🔄 New PWA content available');
@@ -26,7 +24,6 @@ const updateSW = registerSW({
     }
   },
   onOfflineReady() {
-    console.log('📵 PWA is ready to work offline');
   }
 });
 
