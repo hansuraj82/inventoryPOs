@@ -187,52 +187,55 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
 
   const getCoreShopName = (shopName) => {
-  if (!shopName) return "";
+    if (!shopName) return "";
 
-  const stopWords = new Set([
-    "new", "old", "the", "shree", "sri", "shri", "m/s", "ms",
-    "mobile", "mobiles", "computer", "computers", "shop", "store", 
-    "stores", "electronics", "communication", "communications", 
-    "agency", "agencies", "enterprise", "enterprises", "bazar", "mart"
-  ]);
+    const stopWords = new Set([
+      "new", "old", "the", "shree", "sri", "shri", "m/s", "ms",
+      "mobile", "mobiles", "computer", "computers", "shop", "store",
+      "stores", "electronics", "communication", "communications",
+      "agency", "agencies", "enterprise", "enterprises", "bazar", "mart"
+    ]);
 
-  // Clean the string and split into individual words
-  const words = shopName
-    .trim()
-    .replace(/[^a-zA-Z0-9\s]/g, '') // Remove symbols
-    .split(/\s+/)
-    .filter(Boolean); // Remove empty spaces
+    // Clean the string and split into individual words
+    const words = shopName
+      .trim()
+      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove symbols
+      .split(/\s+/)
+      .filter(Boolean); // Remove empty spaces
 
-  // Filter out the generic stop words
-  const filteredWords = words.filter(word => !stopWords.has(word.toLowerCase()));
+    // Filter out the generic stop words
+    const filteredWords = words.filter(word => !stopWords.has(word.toLowerCase()));
 
-  let finalName = "";
+    let finalName = "";
 
-  // CASE 1: If filtering left us with nothing (e.g., "The Mobile Shop")
-  if (filteredWords.length === 0) {
-    finalName = words[0]; 
-  } 
-  // CASE 2: If the core name is just a single letter (e.g., "V Mart", "D Mart")
-  else if (filteredWords[0].length === 1 && words.length > 1) {
-    // Find where that single letter is in the original name, and grab it + the next word
-    const singleLetterIdx = words.findIndex(w => w.toLowerCase() === filteredWords[0].toLowerCase());
-    if (singleLetterIdx !== -1 && words[singleLetterIdx + 1]) {
-      finalName = `${words[singleLetterIdx]} ${words[singleLetterIdx + 1]}`;
-    } else {
+    // CASE 1: If filtering left us with nothing (e.g., "The Mobile Shop")
+    if (filteredWords.length === 0) {
+      finalName = words[0];
+    }
+    // CASE 2: If the core name is just a single letter (e.g., "V Mart", "D Mart")
+    else if (filteredWords[0].length === 1 && words.length > 1) {
+      // Find where that single letter is in the original name, and grab it + the next word
+      const singleLetterIdx = words.findIndex(w => w.toLowerCase() === filteredWords[0].toLowerCase());
+      if (singleLetterIdx !== -1 && words[singleLetterIdx + 1]) {
+        finalName = `${words[singleLetterIdx]} ${words[singleLetterIdx + 1]}`;
+      } else {
+        finalName = filteredWords[0];
+      }
+    }
+    // CASE 3: Normal operation (e.g., "NEW ADI MOBILE" -> "Adi")
+    else {
       finalName = filteredWords[0];
     }
-  } 
-  // CASE 3: Normal operation (e.g., "NEW ADI MOBILE" -> "Adi")
-  else {
-    finalName = filteredWords[0];
-  }
 
-  // Capitalize nicely (handles both single words and two-word pairs like "V Mart")
-  return finalName
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
-};
+    // Capitalize nicely (handles both single words and two-word pairs like "V Mart")
+    return finalName
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+  
+  console.log(getCoreShopName(shopName));
+
 
   doc.text(getCoreShopName(shopName), MARGIN_LEFT, currentY + 5);
 
