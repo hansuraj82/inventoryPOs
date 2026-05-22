@@ -179,7 +179,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   // =================== HEADER SECTION ===================
 
 
-  doc.addImage(`data:image/png;base64,${Logo}`, "PNG", 0, 0, 240, 43.3);
+  doc.addImage(`data:image/png;base64,${Logo}`, "PNG", -10, -15, 260, 78);
   // Shop name
   doc.setFont('helvetica', 'bolditalic');
   doc.setFontSize(20);
