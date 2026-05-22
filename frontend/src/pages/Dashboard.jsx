@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import SalesGraph from '../components/SalesGraph';
 import { saleAPI, productAPI } from '../services/api';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import { DashboardFullSkeleton, ModalProductsContentSkeleton, ModalSalesContentSkeleton, ModalHeaderSkeleton, ModalFooterSkeleton } from '../components/Skeletons';
@@ -39,6 +40,7 @@ export default function Dashboard() {
 
   const handleViewLowStock = async () => {
     try {
+      if (stats.lowStockProducts <= 0) return;
       setDetailsModal({ isOpen: true, type: 'lowStock', data: [] });
       setIsLoadingModal(true);
       const response = await productAPI.getLowStock();
@@ -52,6 +54,7 @@ export default function Dashboard() {
 
   const handleViewTodaysSales = async () => {
     try {
+      if (stats.todaySales <= 0) return;
       setDetailsModal({ isOpen: true, type: 'todaysSales', data: [] });
       setIsLoadingModal(true);
       const response = await saleAPI.getTodayStats();
@@ -95,7 +98,7 @@ export default function Dashboard() {
           >
             <h3 className="text-gray-600 text-xs md:text-sm font-semibold mb-2">Low Stock Items</h3>
             <p className="text-2xl md:text-3xl font-bold text-red-600">{stats.lowStockProducts}</p>
-            <p className="text-xs text-gray-500 mt-2">Click to view details</p>
+            {<p className="text-xs text-gray-500 mt-2">Click to view details</p>}
           </button>
 
           <button
@@ -126,6 +129,11 @@ export default function Dashboard() {
           </p>
         </div>
       )}
+
+      {/* Sales Analytics Graph */}
+      <div className="mb-6 md:mb-8">
+        <SalesGraph />
+      </div>
 
       {/* Details Modal */}
       {detailsModal.isOpen && (
@@ -209,11 +217,10 @@ export default function Dashboard() {
                       <div>
                         <p className="text-gray-600 text-xs font-semibold">Qty</p>
                         <p
-                          className={`font-semibold ${
-                            product.quantity <= product.minStock
+                          className={`font-semibold ${product.quantity <= product.minStock
                               ? 'text-red-600'
                               : 'text-green-600'
-                          }`}
+                            }`}
                         >
                           {product.quantity}
                         </p>

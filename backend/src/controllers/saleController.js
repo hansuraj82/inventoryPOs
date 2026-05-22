@@ -384,3 +384,81 @@ exports.createSale = async (req, res, next) => {
       next(error);
     }
   };
+
+  // @route   GET /api/sales/analytics/graph
+  // @desc    Get sales data for graph (by date range)
+  // @access  Private
+  exports.getSalesAnalytics = async (req, res, next) => {
+    try {
+      const { startDate, endDate, period = 'daily' } = req.query;
+
+      let start = new Date();
+      let end = new Date();
+
+      if (startDate && endDate) {
+        start = new Date(startDate);
+        end = new Date(endDate);
+      } else {
+        // Default to last 30 days
+        start.setDate(start.getDate() - 30);
+      }
+
+      // Ensure start is at beginning of day and end is at end of day
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+
+      const sales = await Sale.find({
+        user: req.user.id,
+        createdAt: {
+          $gte: start,
+          $lte: end
+        }
+      }).select('totalAmount createdAt items');
+
+      // Group sales by date for graph
+      const salesByDate = {};
+      sales.forEach(sale => {
+        const date = new Date(sale.createdAt);
+        const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+
+        if (!salesByDate[dateKey]) {
+          salesByDate[dateKey] = {
+            date: dateKey,
+            totalRevenue: 0,
+            totalTransactions: 0,
+            totalItems: 0
+          };
+        }
+
+        salesByDate[dateKey].totalRevenue += sale.totalAmount;
+        salesByDate[dateKey].totalTransactions += 1;
+        salesByDate[dateKey].totalItems += sale.items.reduce((sum, item) => sum + item.quantity, 0);
+      });
+
+      // Convert to array and sort by date
+      const graphData = Object.values(salesByDate).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      // Calculate summary
+      const summary = {
+        totalRevenue: sales.reduce((sum, sale) => sum + sale.totalAmount, 0),
+        totalTransactions: sales.length,
+        totalItems: sales.reduce((sum, sale) => sum + sale.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0),
+        averageTransactionValue: sales.length > 0 ? sales.reduce((sum, sale) => sum + sale.totalAmount, 0) / sales.length : 0,
+        dateRange: {
+          start: start.toISOString().split('T')[0],
+          end: end.toISOString().split('T')[0]
+        }
+      };
+
+      res.status(200).json({
+        success: true,
+        data: {
+          graphData,
+          summary,
+          totalDays: graphData.length
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };

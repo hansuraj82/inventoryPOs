@@ -5,7 +5,8 @@ const {
   searchSales,
   createSale,
   getTodaySales,
-  getDashboardStats
+  getDashboardStats,
+  getSalesAnalytics
 } = require('../controllers/saleController');
 const { protect } = require('../middleware/auth');
 const { createLimiter, searchLimiter } = require('../middleware/rateLimiter');
@@ -17,6 +18,7 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/search', searchLimiter, searchSales);
+router.get('/analytics/graph', getSalesAnalytics);
 router.get('/', getSales);
 router.get('/stats/today', getTodaySales);
 router.get('/stats/dashboard', getDashboardStats);
