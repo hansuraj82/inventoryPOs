@@ -58,7 +58,8 @@ export const saleAPI = {
   getById: (id) => api.get(`/sales/${id}`),
   create: (data) => api.post('/sales', data),
   getTodayStats: () => api.get('/sales/stats/today'),
-  getDashboardStats: () => api.get('/sales/stats/dashboard')
+  getDashboardStats: () => api.get('/sales/stats/dashboard'),
+  getAnalytics: (startDate, endDate) => api.get('/sales/analytics/graph', { params: { startDate, endDate } })
 };
 
 export default api;
