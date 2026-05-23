@@ -86,7 +86,7 @@ export default function SalesGraph() {
 
   const handleCustomDateFilter = () => {
     if (!customStartDate || !customEndDate) {
-      toast.error('Please select both bounds');
+      toast.error('Please select both Dates');
       return;
     }
     setFilterType('custom');
@@ -110,7 +110,7 @@ export default function SalesGraph() {
             <span className="font-black tabular-nums">{formatCurrency(payload[0].value)}</span>
           </div>
           <div className="flex items-center gap-4 justify-between">
-            <span className="text-emerald-400 font-bold">Tickets:</span>
+            <span className="text-emerald-400 font-bold">Generated Bills:</span>
             <span className="font-black tabular-nums">{payload[0].payload.totalTransactions} bills</span>
           </div>
           <div className="flex items-center gap-4 justify-between">
@@ -181,7 +181,7 @@ export default function SalesGraph() {
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
-            <span>Custom Bounds</span>
+            <span>Custom Filter</span>
           </button>
         </div>
       </div>
@@ -206,7 +206,7 @@ export default function SalesGraph() {
               onClick={handleCustomDateFilter}
               className="w-full bg-indigo-600 text-white font-black text-xs uppercase tracking-widest py-3 rounded-xl shadow-md hover:bg-indigo-700 transition-all"
             >
-              Run Query
+              Get Details
             </button>
           </div>
         </div>
@@ -222,17 +222,17 @@ export default function SalesGraph() {
           </div>
           <div className="bg-white border p-4 rounded-2xl shadow-sm relative overflow-hidden">
             <div className="absolute top-0 right-0 w-12 h-12 bg-slate-50 rounded-bl-2xl flex items-center justify-center text-emerald-500"><ShoppingBag size={16} /></div>
-            <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Tickets Cleared</p>
+            <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Total Bills</p>
             <p className="text-xl font-black mt-1 text-slate-900 tabular-nums">{summary.totalTransactions}</p>
           </div>
           <div className="bg-white border p-4 rounded-2xl shadow-sm relative overflow-hidden">
             <div className="absolute top-0 right-0 w-12 h-12 bg-slate-50 rounded-bl-2xl flex items-center justify-center text-purple-500"><Layers size={16} /></div>
-            <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Volume Dispatched</p>
+            <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Total Items Sold</p>
             <p className="text-xl font-black mt-1 text-slate-900 tabular-nums">{summary.totalItems}</p>
           </div>
           <div className="bg-white border p-4 rounded-2xl shadow-sm relative overflow-hidden">
             <div className="absolute top-0 right-0 w-12 h-12 bg-slate-50 rounded-bl-2xl flex items-center justify-center text-amber-500"><TrendingUp size={16} /></div>
-            <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Basket Mean</p>
+            <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Average Transaction Amount</p>
             <p className="text-xl font-black mt-1 text-slate-900 tabular-nums truncate">{formatCurrency(summary.averageTransactionValue)}</p>
           </div>
         </div>
@@ -248,7 +248,7 @@ export default function SalesGraph() {
         ) : graphData.length === 0 ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
             <BarChart3 className="w-10 h-10 text-slate-200 mb-2" />
-            <p className="text-xs font-black text-slate-700 uppercase">No Data Array Found</p>
+            <p className="text-xs font-black text-slate-700 uppercase">No Data Found</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">

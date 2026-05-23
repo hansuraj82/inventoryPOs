@@ -287,11 +287,11 @@ export default function PriceHistoryModal({ product, isOpen, onClose }) {
         {/* Live Metrics Matrix Banner */}
         <div className="grid grid-cols-2 bg-slate-950 p-4 gap-2 text-white border-b border-slate-800 shrink-0">
           <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-            <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Current Retail Target</p>
+            <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Current Selling Price</p>
             <p className="text-xl font-black mt-1 text-indigo-300 tabular-nums">{formatCurrency(product?.sellingPrice)}</p>
           </div>
           <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-            <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Current Procurement Base</p>
+            <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Current Cost Price</p>
             <p className="text-xl font-black mt-1 text-amber-300 tabular-nums">{formatCurrency(product?.costPrice || 0)}</p>
           </div>
         </div>
@@ -306,7 +306,7 @@ export default function PriceHistoryModal({ product, isOpen, onClose }) {
                 : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            <MdAttachMoney size={16} /> Retail Price Logs ({sellingHistory.length})
+            <MdAttachMoney size={16} /> Retail Price ({sellingHistory.length})
           </button>
           <button
             onClick={() => setActiveTab('cost')}
@@ -316,7 +316,7 @@ export default function PriceHistoryModal({ product, isOpen, onClose }) {
                 : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            <MdLocalMall size={16} /> Procurement Logs ({costHistory.length})
+            <MdLocalMall size={16} /> Cost Price ({costHistory.length})
           </button>
         </div>
 
