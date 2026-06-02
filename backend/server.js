@@ -7,14 +7,18 @@ const connectDB = require('./db');
 const authRoutes = require('./src/routes/authRoutes');
 const productRoutes = require('./src/routes/productRoutes');
 const saleRoutes = require('./src/routes/saleRoutes');
+const staffAllocationRoutes = require('./src/routes/staffAllocationRoutes');
 const { errorHandler } = require('./src/middleware/errorHandler');
 const { apiLimiter } = require('./src/middleware/rateLimiter');
 
 const app = express();
 
+// Trust proxy - required for X-Forwarded-For header (Docker, load balancers, Vercel, etc.)
+app.set('trust proxy', 1);
+
 // CORS configuration
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL_FOR_LOCAL || 'http://localhost:3000',
   credentials: true,
   optionsSuccessStatus: 200
 };
@@ -37,6 +41,7 @@ connectDB();
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/sales', saleRoutes);
+app.use('/api/staff', staffAllocationRoutes);
 
 // Health check (not rate limited)
 app.get('/api/health', (req, res) => {
