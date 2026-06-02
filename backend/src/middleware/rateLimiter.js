@@ -3,7 +3,7 @@ const rateLimit = require('express-rate-limit');
 // General API rate limiter - 100 requests per 15 minutes
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 2000,
   message: {
     success: false,
     message: 'Too many requests from this IP, please try again later.'
@@ -19,7 +19,7 @@ const apiLimiter = rateLimit({
 // Strict auth rate limiter - 5 requests per 15 minutes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: 500,
   message: {
     success: false,
     message: 'Too many login/register attempts, please try again later.'
@@ -32,7 +32,7 @@ const authLimiter = rateLimit({
 // Create product rate limiter - 50 requests per 15 minutes
 const createLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1500,
   message: {
     success: false,
     message: 'Too many product creations, please try again later.'
@@ -44,7 +44,7 @@ const createLimiter = rateLimit({
 // Search rate limiter - 30 requests per minute
 const searchLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: 600,
   message: {
     success: false,
     message: 'Too many search requests, please try again later.'
