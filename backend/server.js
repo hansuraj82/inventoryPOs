@@ -7,7 +7,6 @@ const connectDB = require('./db');
 const authRoutes = require('./src/routes/authRoutes');
 const productRoutes = require('./src/routes/productRoutes');
 const saleRoutes = require('./src/routes/saleRoutes');
-const staffAllocationRoutes = require('./src/routes/staffAllocationRoutes');
 const { errorHandler } = require('./src/middleware/errorHandler');
 const { apiLimiter } = require('./src/middleware/rateLimiter');
 
@@ -41,7 +40,6 @@ connectDB();
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/sales', saleRoutes);
-app.use('/api/staff', staffAllocationRoutes);
 
 // Health check (not rate limited)
 app.get('/api/health', (req, res) => {
