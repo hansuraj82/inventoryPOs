@@ -89,23 +89,57 @@ export const useProductStore = create((set) => ({
 export const useCartStore = create((set) => ({
   items: [],
   totalAmount: 0,
+  saleDiscount: { type: 'fixed', value: 0 }, // Overall sale discount
 
-  // Helper function to calculate item total with GST
+  // Helper function to calculate item total with GST and discount
   getItemTotal: (item) => {
     const baseAmount = item.price * item.quantity;
+    let discountedAmount = baseAmount;
+
+    // Apply item-level discount if exists
+    if (item.discount && item.discount.value > 0) {
+      if (item.discount.type === 'percentage') {
+        discountedAmount = baseAmount * (1 - item.discount.value / 100);
+      } else {
+        discountedAmount = baseAmount - item.discount.value;
+      }
+    }
+
     const gstRate = item.customGstRate || item.gstRate || 18;
-    const taxAmount = (baseAmount * gstRate) / 100;
-    return baseAmount + taxAmount;
+    const taxAmount = (discountedAmount * gstRate) / 100;
+    return discountedAmount + taxAmount;
   },
 
-  // Helper function to calculate total cart amount with GST
-  calculateTotalAmount: (items) => {
-    return items.reduce((sum, item) => {
+  // Helper function to calculate total cart amount with GST and discounts
+  calculateTotalAmount: (items, saleDiscount) => {
+    let subtotal = items.reduce((sum, item) => {
       const baseAmount = item.price * item.quantity;
+      let discountedAmount = baseAmount;
+
+      // Apply item-level discount
+      if (item.discount && item.discount.value > 0) {
+        if (item.discount.type === 'percentage') {
+          discountedAmount = baseAmount * (1 - item.discount.value / 100);
+        } else {
+          discountedAmount = baseAmount - item.discount.value;
+        }
+      }
+
       const gstRate = item.customGstRate || item.gstRate || 18;
-      const taxAmount = (baseAmount * gstRate) / 100;
-      return sum + baseAmount + taxAmount;
+      const taxAmount = (discountedAmount * gstRate) / 100;
+      return sum + discountedAmount + taxAmount;
     }, 0);
+
+    // Apply sale-level discount
+    if (saleDiscount && saleDiscount.value > 0) {
+      if (saleDiscount.type === 'percentage') {
+        subtotal = subtotal * (1 - saleDiscount.value / 100);
+      } else {
+        subtotal = subtotal - saleDiscount.value;
+      }
+    }
+
+    return Math.max(0, subtotal);
   },
 
   addItem: (product) => {
@@ -129,17 +163,14 @@ export const useCartStore = create((set) => ({
           gstRate: product.gstRate || 18,
           // Custom values will override defaults
           customHsnCode: product.customHsnCode || product.hsnCode || '',
-          customGstRate: product.customGstRate || product.gstRate || 18
+          customGstRate: product.customGstRate || product.gstRate || 18,
+          // Initialize discount with default to fixed/rupees
+          discount: { type: 'fixed', value: 0 }
         };
         newItems = [...state.items, newItem];
       }
 
-      const total = newItems.reduce((sum, item) => {
-        const baseAmount = item.price * item.quantity;
-        const gstRate = item.customGstRate !== undefined ? item.customGstRate : (item.gstRate || 18);
-        const taxAmount = (baseAmount * gstRate) / 100;
-        return sum + baseAmount + taxAmount;
-      }, 0);
+      const total = state.calculateTotalAmount(newItems, state.saleDiscount);
       return { items: newItems, totalAmount: total };
     });
   },
@@ -155,13 +186,40 @@ export const useCartStore = create((set) => ({
         );
       }
 
-      const total = newItems.reduce((sum, item) => {
-        const baseAmount = item.price * item.quantity;
-        const gstRate = item.customGstRate || item.gstRate || 18;
-        const taxAmount = (baseAmount * gstRate) / 100;
-        return sum + baseAmount + taxAmount;
-      }, 0);
+      const total = state.calculateTotalAmount(newItems, state.saleDiscount);
       return { items: newItems, totalAmount: total };
+    });
+  },
+
+  updateItemDiscount: (productId, discountType, discountValue) => {
+    set((state) => {
+      const newItems = state.items.map(item => {
+        if (item._id === productId) {
+          return {
+            ...item,
+            discount: {
+              type: discountType || 'fixed',
+              value: Math.max(0, Number(discountValue) || 0)
+            }
+          };
+        }
+        return item;
+      });
+
+      const total = state.calculateTotalAmount(newItems, state.saleDiscount);
+      return { items: newItems, totalAmount: total };
+    });
+  },
+
+  updateSaleDiscount: (discountType, discountValue) => {
+    set((state) => {
+      const newSaleDiscount = {
+        type: discountType || 'fixed',
+        value: Math.max(0, Number(discountValue) || 0)
+      };
+
+      const total = state.calculateTotalAmount(state.items, newSaleDiscount);
+      return { saleDiscount: newSaleDiscount, totalAmount: total };
     });
   },
 
@@ -179,12 +237,7 @@ export const useCartStore = create((set) => ({
         return item;
       });
       
-      const total = newItems.reduce((sum, item) => {
-        const baseAmount = item.price * item.quantity;
-        const gstRateValue = item.customGstRate !== undefined ? item.customGstRate : (item.gstRate || 18);
-        const taxAmount = (baseAmount * gstRateValue) / 100;
-        return sum + baseAmount + taxAmount;
-      }, 0);
+      const total = state.calculateTotalAmount(newItems, state.saleDiscount);
       return { items: newItems, totalAmount: total };
     });
   },
@@ -192,15 +245,10 @@ export const useCartStore = create((set) => ({
   removeItem: (productId) => {
     set((state) => {
       const newItems = state.items.filter(item => item._id !== productId);
-      const total = newItems.reduce((sum, item) => {
-        const baseAmount = item.price * item.quantity;
-        const gstRate = item.customGstRate !== undefined ? item.customGstRate : (item.gstRate || 18);
-        const taxAmount = (baseAmount * gstRate) / 100;
-        return sum + baseAmount + taxAmount;
-      }, 0);
+      const total = state.calculateTotalAmount(newItems, state.saleDiscount);
       return { items: newItems, totalAmount: total };
     });
   },
 
-  clearCart: () => set({ items: [], totalAmount: 0 })
+  clearCart: () => set({ items: [], totalAmount: 0, saleDiscount: { type: 'fixed', value: 0 } })
 }));

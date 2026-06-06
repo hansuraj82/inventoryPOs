@@ -130,7 +130,7 @@ exports.getSale = async (req, res, next) => {
 // @access  Private
 exports.createSale = async (req, res, next) => {
   try {
-    const { items, totalAmount, paymentMethod, paidAmount, customer, isGstBill = true } = req.body;
+    const { items, totalAmount, paymentMethod, paidAmount, customer, isGstBill = true, saleDiscount } = req.body;
 
     // Validation
     if (!items || items.length === 0) {
@@ -170,6 +170,7 @@ exports.createSale = async (req, res, next) => {
     let totalProfit = 0;
     let totalTaxableAmount = 0;
     let totalTaxAmount = 0;
+    let totalDiscountAmount = 0;
 
     for (const item of items) {
 
@@ -198,7 +199,23 @@ exports.createSale = async (req, res, next) => {
       await product.save();
 
       const itemCostPrice = product.costPrice || 0;
-      const itemProfit = (item.price - itemCostPrice) * item.quantity;
+      
+      // Calculate discount amount for this item
+      const baseAmount = Number(item.price) * Number(item.quantity);
+      let itemDiscountAmount = 0;
+      let discountedAmount = baseAmount;
+      
+      if (item.discount && item.discount.value > 0) {
+        if (item.discount.type === 'percentage') {
+          itemDiscountAmount = (baseAmount * item.discount.value) / 100;
+        } else {
+          itemDiscountAmount = Number(item.discount.value);
+        }
+        discountedAmount = baseAmount - itemDiscountAmount;
+        totalDiscountAmount += itemDiscountAmount;
+      }
+
+      const itemProfit = (item.price - itemCostPrice) * item.quantity - itemDiscountAmount;
       totalProfit += itemProfit;
 
       // GST & HSN Calculations with explicit null/undefined/empty checks
@@ -232,8 +249,8 @@ exports.createSale = async (req, res, next) => {
         }
       }
 
-      // Calculations
-      const taxableValue = Number(item.price) * Number(item.quantity);
+      // Calculations - Tax applied on discounted amount
+      const taxableValue = discountedAmount;
       const taxAmount = (taxableValue * gstRate) / 100;
       const itemTotal = taxableValue + taxAmount;
 
@@ -248,6 +265,7 @@ exports.createSale = async (req, res, next) => {
         price: item.price,
         hsnCode: hsnCode,
         gstRate: gstRate,
+        discount: item.discount || { type: 'percentage', value: 0 },
         taxableValue: taxableValue,
         taxAmount: taxAmount,
         itemTotal: itemTotal,
@@ -255,59 +273,74 @@ exports.createSale = async (req, res, next) => {
       });
     }
 
-
-      // Create sale without invoice number first
-      const creditAmount = Math.max(0, totalAmount - paidAmount);
-      const change = Math.max(0, paidAmount - totalAmount);
-      const isCredit = creditAmount > 0;
-
-      const sale = await Sale.create({
-        user: req.user.id,
-        invoiceNumber: `${req.userId}-${Math.random()}`, // Will update after getting _id
-        customerName: customer.name,
-        customer: {
-          name: customer.name,
-          mobile: customer.mobile,
-          address: customer.address || '',
-          email: customer.email || ''
-        },
-        items: processedItems,
-        totalAmount,
-        totalTaxableAmount,
-        totalTaxAmount,
-        totalProfit,
-        paymentMethod,
-        paidAmount,
-        change,
-        isCredit,
-        creditAmount,
-        isGstBill: isGstBill !== undefined ? isGstBill : true,
-        businessDetails: {
-          gstin: user.businessDetails?.gstin || '',
-          pan: user.businessDetails?.pan || '',
-          address: user.businessDetails?.businessAddress || '',
-          phone: user.businessDetails?.businessPhone || '',
-          email: user.businessDetails?.businessEmail || ''
-        }
-      });
-
-      // Generate Invoice Number using shop name and sale _id
-      const invoiceNumber = `${user.shopName.replaceAll(' ', '').substring(0, 4).toUpperCase()}${sale._id.toString().substring(6, 10).toUpperCase()}`;
-
-      // Update sale with invoice number
-      sale.invoiceNumber = invoiceNumber;
-      await sale.save();
-
-      const populatedSale = await sale.populate('items.product', 'name barcode');
-
-      res.status(201).json({
-        success: true,
-        data: populatedSale
-      });
-    } catch (error) {
-      next(error);
+    // Apply sale-level discount
+    let saleLevelDiscountAmount = 0;
+    let finalTotalAmount = totalTaxableAmount + totalTaxAmount;
+    
+    if (saleDiscount && saleDiscount.value > 0) {
+      if (saleDiscount.type === 'percentage') {
+        saleLevelDiscountAmount = (finalTotalAmount * saleDiscount.value) / 100;
+      } else {
+        saleLevelDiscountAmount = Number(saleDiscount.value);
+      }
+      finalTotalAmount = Math.max(0, finalTotalAmount - saleLevelDiscountAmount);
+      totalDiscountAmount += saleLevelDiscountAmount;
     }
-  };
+
+    // Create sale without invoice number first
+    const creditAmount = Math.max(0, finalTotalAmount - paidAmount);
+    const change = Math.max(0, paidAmount - finalTotalAmount);
+    const isCredit = creditAmount > 0;
+
+    const sale = await Sale.create({
+      user: req.user.id,
+      invoiceNumber: `${req.userId}-${Math.random()}`, // Will update after getting _id
+      customerName: customer.name,
+      customer: {
+        name: customer.name,
+        mobile: customer.mobile,
+        address: customer.address || '',
+        email: customer.email || ''
+      },
+      items: processedItems,
+      totalAmount: finalTotalAmount,
+      totalTaxableAmount,
+      totalTaxAmount,
+      totalDiscountAmount,
+      saleDiscount: saleDiscount || { type: 'fixed', value: 0 },
+      totalProfit,
+      paymentMethod,
+      paidAmount,
+      change,
+      isCredit,
+      creditAmount,
+      isGstBill: isGstBill !== undefined ? isGstBill : true,
+      businessDetails: {
+        gstin: user.businessDetails?.gstin || '',
+        pan: user.businessDetails?.pan || '',
+        address: user.businessDetails?.businessAddress || '',
+        phone: user.businessDetails?.businessPhone || '',
+        email: user.businessDetails?.businessEmail || ''
+      }
+    });
+
+    // Generate Invoice Number using shop name and sale _id
+    const invoiceNumber = `${user.shopName.replaceAll(' ', '').substring(0, 4).toUpperCase()}${sale._id.toString().substring(6, 10).toUpperCase()}`;
+
+    // Update sale with invoice number
+    sale.invoiceNumber = invoiceNumber;
+    await sale.save();
+
+    const populatedSale = await sale.populate('items.product', 'name barcode');
+
+    res.status(201).json({
+      success: true,
+      data: populatedSale
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
   // @route   GET /api/sales/stats/today
   // @desc    Get sales stats for today

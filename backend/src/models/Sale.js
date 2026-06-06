@@ -48,6 +48,22 @@ const saleSchema = new mongoose.Schema({
         type: Number,
         default: 18
       },
+      // Discount fields for individual items
+      discount: {
+        type: {
+          type: String,
+          enum: ['percentage', 'fixed'],
+          default: 'percentage'
+        },
+        value: {
+          type: Number,
+          default: 0
+        },
+        amount: {
+          type: Number,
+          default: 0
+        }
+      },
       taxableValue: {
         type: Number,
         required: true
@@ -66,6 +82,26 @@ const saleSchema = new mongoose.Schema({
       }
     }
   ],
+  // Overall sale discount (can be applied after all items)
+  saleDiscount: {
+    type: {
+      type: String,
+      enum: ['percentage', 'fixed'],
+      default: 'fixed'
+    },
+    value: {
+      type: Number,
+      default: 0
+    },
+    amount: {
+      type: Number,
+      default: 0
+    }
+  },
+  totalDiscountAmount: {
+    type: Number,
+    default: 0
+  },
   totalTaxableAmount: {
     type: Number,
     default: 0

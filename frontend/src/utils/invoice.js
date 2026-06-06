@@ -113,20 +113,34 @@ const formatCurrency = (value) => {
 };
 
 /**
- * Calculate GST breakdown
+ * Calculate GST breakdown with item-level discounts
  */
 const calculateGSTBreakdown = (items) => {
   let totalTaxable = 0;
   let totalTax = 0;
+  let totalItemDiscount = 0;
   const taxByRate = {};
 
   (items || []).forEach(item => {
-    const taxableValue = Number(item.price) * Number(item.quantity);
+    const basePrice = Number(item.price) * Number(item.quantity);
+    
+    // Apply item-level discount if any
+    let itemDiscount = 0;
+    if (item.discount && item.discount.value > 0) {
+      if (item.discount.type === 'percentage') {
+        itemDiscount = (basePrice * item.discount.value) / 100;
+      } else {
+        itemDiscount = Number(item.discount.value) || 0;
+      }
+    }
+    
+    const taxableValue = basePrice - itemDiscount;
     const gstRate = Number(item.gstRate) || 0;
     const taxAmount = (taxableValue * gstRate) / 100;
 
     totalTaxable += taxableValue;
     totalTax += taxAmount;
+    totalItemDiscount += itemDiscount;
 
     // Group tax by rate
     if (!taxByRate[gstRate]) {
@@ -136,7 +150,7 @@ const calculateGSTBreakdown = (items) => {
     taxByRate[gstRate].tax += taxAmount;
   });
 
-  return { totalTaxable, totalTax, grandTotal: totalTaxable + totalTax, taxByRate };
+  return { totalTaxable, totalTax, totalItemDiscount, grandTotal: totalTaxable + totalTax, taxByRate };
 };
 
 // =================== MAIN INVOICE GENERATION ===================
@@ -386,7 +400,19 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
     const itemPrice = Number(item.price) || 0;
     const itemQty = Number(item.quantity) || 0;
-    const taxableValue = itemPrice * itemQty;
+    const baseAmount = itemPrice * itemQty;
+    
+    // Apply item-level discount if any
+    let itemDiscount = 0;
+    if (item.discount && item.discount.value > 0) {
+      if (item.discount.type === 'percentage') {
+        itemDiscount = (baseAmount * item.discount.value) / 100;
+      } else {
+        itemDiscount = Number(item.discount.value) || 0;
+      }
+    }
+    
+    const taxableValue = baseAmount - itemDiscount;
     const gstRate = Number(item.gstRate) || 0;
     const taxAmount = (taxableValue * gstRate) / 100;
     const itemTotal = taxableValue + taxAmount;
@@ -400,7 +426,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
     // Item name with text wrapping
     doc.setTextColor(...COLORS.primary);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('helvetica', 'bolditalic');
     const itemLines = doc.splitTextToSize((item.productName || 'N/A').toUpperCase(), colWidths.item - 3);
     const itemHeight = itemLines.length * 3;
     doc.text(itemLines, colX + 2, currentY + 4,);
@@ -440,6 +466,18 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     doc.setTextColor(...COLORS.primary);
     doc.text(`${itemTotal.toFixed(2)}`, colX + colWidths.amount / 2 + 11, currentY + 4, { align: 'right' });
 
+    // Show discount if any
+    if (itemDiscount > 0) {
+      currentY += rowHeight;
+      doc.setFontSize(6);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(239, 68, 68); // Red for discount
+      const discountText = item.discount.type === 'percentage' 
+        ? `Discount: ${item.discount.value}% (-₹${itemDiscount.toFixed(2)})` 
+        : `Discount: - ${itemDiscount.toFixed(2)}`;
+      doc.text(discountText, MARGIN_LEFT + 10, currentY);
+    }
+
     currentY += rowHeight;
 
     // Separator line
@@ -452,7 +490,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   // =================== TAX SUMMARY & AMOUNT SECTION ===================
   checkPageBreak(60);
 
-  const { totalTaxable, totalTax, grandTotal, taxByRate } = calculateGSTBreakdown(saleData.items);
+  const { totalTaxable, totalTax, totalItemDiscount, grandTotal, taxByRate } = calculateGSTBreakdown(saleData.items);
 
   // Left section - Tax breakdown table
   const taxSummaryLeftX = MARGIN_LEFT;
@@ -504,7 +542,19 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     const rates = new Set();
 
     items.forEach(item => {
-      const taxableValue = Number(item.price) * Number(item.quantity);
+      const baseAmount = Number(item.price) * Number(item.quantity);
+      
+      // Apply item-level discount if any
+      let itemDiscount = 0;
+      if (item.discount && item.discount.value > 0) {
+        if (item.discount.type === 'percentage') {
+          itemDiscount = (baseAmount * item.discount.value) / 100;
+        } else {
+          itemDiscount = Number(item.discount.value) || 0;
+        }
+      }
+      
+      const taxableValue = baseAmount - itemDiscount;
       const gstRate = Number(item.gstRate) || 0;
       const taxAmount = (taxableValue * gstRate) / 100;
       hsnTaxable += taxableValue;
@@ -534,9 +584,31 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   let summaryY = currentY + 10;
   const taxSumLabelX = taxSummaryRightX + 3;
   const taxSumValueX = taxSummaryRightX + taxSummaryRightWidth - 3;
-
-  // Subtotal
+  
+  // Subtotal (before discounts)
+  const baseSubtotal = totalTaxable + (totalItemDiscount || 0);
   doc.setFontSize(8);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(...COLORS.muted);
+  doc.text('Base Amount:', taxSumLabelX, summaryY);
+  doc.setTextColor(...COLORS.primary);
+  doc.setFont('helvetica', 'bolditalic');
+  doc.text(`Rs ${baseSubtotal.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
+
+  summaryY += 5;
+
+  // Item Discounts (if any)
+  const itemDiscount = (totalItemDiscount || 0);
+  if (itemDiscount > 0) {
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(239, 68, 68); // Red color for discount
+    doc.text('Item Discounts:', taxSumLabelX, summaryY);
+    doc.setFont('helvetica', 'bolditalic');
+    doc.text(`- Rs ${itemDiscount.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
+    summaryY += 5;
+  }
+
+  // Subtotal (after item discounts)
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(...COLORS.muted);
   doc.text('Subtotal:', taxSumLabelX, summaryY);
@@ -554,7 +626,30 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.setFont('helvetica', 'bolditalic');
   doc.text(`Rs ${totalTax.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
 
-  summaryY += 7;
+  summaryY += 5;
+
+  // Total Discount (if any)
+  const totalDiscount = (saleData.totalDiscountAmount || 0);
+  const saleDiscount = (saleData.saleDiscount.value || 0);
+  if (saleDiscount > 0) {
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(239, 68, 68); // Red color for discount
+    doc.text('Sale Discount:', taxSumLabelX, summaryY);
+    doc.setFont('helvetica', 'bolditalic');
+    doc.text(`- Rs ${saleDiscount.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
+    summaryY += 5;
+  }
+
+    if (totalDiscount > 0) {
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(239, 68, 68); // Red color for discount
+    doc.text('Total Discount:', taxSumLabelX, summaryY);
+    doc.setFont('helvetica', 'bolditalic');
+    doc.text(`- Rs ${totalDiscount.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
+    summaryY += 5;
+  }
+
+  summaryY += 2;
 
   // Divider
   doc.setDrawColor(...COLORS.accent);
@@ -563,14 +658,15 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
   summaryY += 3;
 
-  // Grand Total
+  // Grand Total (with all discounts)
   doc.setFont('helvetica', 'bolditalic');
   doc.setFontSize(10);
   doc.setTextColor(...COLORS.accent);
   doc.text('GRAND TOTAL:', taxSumLabelX, summaryY);
-  doc.text(`Rs ${grandTotal.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
+  const finalGrandTotal = Math.max(0, saleData.totalAmount);
+  doc.text(`Rs ${finalGrandTotal.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
 
-  currentY += Math.max(taxBoxHeight, 20) + 3;
+  currentY += Math.max(taxBoxHeight, 20) + 15;
 
   // =================== AMOUNT IN WORDS ===================
   checkPageBreak(40);
@@ -583,7 +679,9 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.setTextColor(...COLORS.muted);
   doc.text('Amount in Words:', MARGIN_LEFT + 3, currentY + 2.6);
 
-  const amountWords = convertNumberToWords(Number(grandTotal));
+  // Use final total after all discounts (already calculated with breakdown)
+  const finalAmountForWords = Math.max(0, (totalTaxable + totalTax - (saleData.totalDiscountAmount || 0)));
+  const amountWords = convertNumberToWords(Number(finalAmountForWords));
   doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.primary);
   doc.text(
@@ -636,7 +734,8 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
   doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(...COLORS.accent);
-  doc.text(formatCurrency(grandTotal), rightPaymentValueX, currentY + 7, { align: 'right' });
+  const finalPaymentTotal = Math.max(saleData.totalAmount);
+  doc.text(formatCurrency(finalPaymentTotal), rightPaymentValueX, currentY + 7, { align: 'right' });
   doc.text(formatCurrency(saleData.paidAmount || 0), rightPaymentValueX, currentY + 10, { align: 'right' });
 
   currentY += 16;
