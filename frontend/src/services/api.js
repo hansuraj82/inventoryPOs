@@ -41,7 +41,7 @@ export const authAPI = {
 
 // Product API calls
 export const productAPI = {
-  getAll: (page = 1, limit = 10) => api.get('/products', { params: { page, limit } }),
+  getAll: (page = 1, limit = 30) => api.get('/products', { params: { page, limit } }),
   search: (query, page = 1, limit = 10) => api.get('/products/search', { params: { query, page, limit } }),
   getById: (id) => api.get(`/products/${id}`),
   getByBarcode: (barcode) => api.get(`/products/barcode/${barcode}`),
@@ -51,15 +51,20 @@ export const productAPI = {
   getLowStock: () => api.get('/products/low-stock')
 };
 
-// Sale API calls
+
 export const saleAPI = {
   getAll: (page = 1, limit = 15) => api.get('/sales', { params: { page, limit } }),
   search: (query, page = 1, limit = 15) => api.get('/sales/search', { params: { q: query, page, limit } }),
   getById: (id) => api.get(`/sales/${id}`),
   create: (data) => api.post('/sales', data),
+  
+  // ADDED: Update existing sale record
+  update: (id, data) => api.put(`/sales/${id}`, data),
+  
   getTodayStats: () => api.get('/sales/stats/today'),
   getDashboardStats: () => api.get('/sales/stats/dashboard'),
   getAnalytics: (startDate, endDate) => api.get('/sales/analytics/graph', { params: { startDate, endDate } })
 };
+
 
 export default api;

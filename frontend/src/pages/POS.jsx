@@ -29,7 +29,7 @@ export default function POS() {
   const [editingItemId, setEditingItemId] = useState(null);
   const [editingHsn, setEditingHsn] = useState('');
   const [editingGst, setEditingGst] = useState('18');
-  
+
   // Discount states
   const [discountingItemId, setDiscountingItemId] = useState(null);
   const [discountType, setDiscountType] = useState('fixed');
@@ -37,10 +37,33 @@ export default function POS() {
   const [saleDiscountType, setSaleDiscountType] = useState('fixed');
   const [saleDiscountValue, setSaleDiscountValue] = useState('');
 
+
+
+  const getISODate = (date) => {
+    const d = date ? new Date(date) : new Date();
+
+    const year = d.getFullYear();
+    // Months are 0-indexed in JS (0 = January), so we add 1
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  };
+
+  // 1. Keep the state in YYYY-MM-DD format
+  const [billingDate, setBillingDate] = useState(getISODate());
+
+
+  const finalBillingDate = new Date(billingDate);
+
+  // 2. Grab the current local hours, minutes, and seconds
+  const now = new Date();
+  finalBillingDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+
   // Customer Information
   const [customerInfo, setCustomerInfo] = useState({
-    name: '',
-    mobile: '',
+    name: 'CASH',
+    mobile: 'N/A',
     address: '',
     email: ''
   });
@@ -334,7 +357,7 @@ export default function POS() {
 
     try {
       setIsProcessing(true);
-      
+
       const saleData = {
         customer: customerInfo,
         items: cartItems.map((item, idx) => {
@@ -352,13 +375,13 @@ export default function POS() {
           }
 
           // For GST bills: Priority: custom value > default value > fallback
-          const finalHsn = (item.customHsnCode !== undefined && item.customHsnCode !== null) 
-            ? String(item.customHsnCode).trim() 
+          const finalHsn = (item.customHsnCode !== undefined && item.customHsnCode !== null)
+            ? String(item.customHsnCode).trim()
             : (item.hsnCode ? String(item.hsnCode).trim() : '');
-          
-          const finalGst = (item.customGstRate !== undefined && item.customGstRate !== null 
+
+          const finalGst = (item.customGstRate !== undefined && item.customGstRate !== null
             ? Number(item.customGstRate)
-            : (item.gstRate !== undefined && item.gstRate !== null 
+            : (item.gstRate !== undefined && item.gstRate !== null
               ? Number(item.gstRate)
               : 18));
 
@@ -370,16 +393,17 @@ export default function POS() {
             gstRate: finalGst,
             discount: item.discount || { type: 'percentage', value: 0 }
           };
-          
+
           return itemData;
         }),
         totalAmount,
         paymentMethod,
         paidAmount: paid,
         isGstBill,
-        saleDiscount: saleDiscount || { type: 'fixed', value: 0 }
+        saleDiscount: saleDiscount || { type: 'fixed', value: 0 },
+        createdAt: finalBillingDate
       };
-      
+
       const response = await saleAPI.create(saleData);
       const sale = response.data.data;
 
@@ -493,6 +517,7 @@ export default function POS() {
                       <th className="text-left py-2 font-bold text-gray-900">Item</th>
                       <th className="text-center py-2 font-bold text-gray-900">Qty</th>
                       <th className="text-right py-2 font-bold text-gray-900">Price</th>
+                      <th className="text-right py-2 font-bold text-gray-900">Item Discount</th>
                       <th className="text-right py-2 font-bold text-gray-900">Amount</th>
                     </tr>
                   </thead>
@@ -502,6 +527,7 @@ export default function POS() {
                         <td className="py-2 text-gray-900">{item.productName}</td>
                         <td className="text-center py-2 text-gray-900">{item.quantity}</td>
                         <td className="text-right py-2 text-gray-900">{formatCurrency(item.price)}</td>
+                        <td className="text-right py-2 text-gray-900">{formatCurrency(item.discount.amount)}</td>
                         <td className="text-right py-2 font-semibold text-gray-900">{formatCurrency(item.subtotal)}</td>
                       </tr>
                     ))}
@@ -676,6 +702,14 @@ export default function POS() {
                   required
                 />
                 <input
+                  type="date"
+                  placeholder='Billing Date'
+                  value={billingDate}
+                  onChange={(e) => setBillingDate(e.target.value)}
+                  className='input-field text-xs md:text-sm py-2'
+                  required
+                />
+                <input
                   type="text"
                   placeholder="Address (Optional)"
                   value={customerInfo.address}
@@ -775,7 +809,7 @@ export default function POS() {
                             <p className="font-semibold text-indigo-600">{item.customGstRate || item.gstRate || 18}%</p>
                           </div>
                         </div>
-                        
+
                         {/* Amount Breakdown */}
                         <div className="text-xs bg-white p-1 rounded mb-2 space-y-0.5">
                           <div className="flex justify-between">
@@ -816,28 +850,28 @@ export default function POS() {
                           <div className="flex justify-between border-t pt-0.5">
                             <span className="font-semibold">Total:</span>
                             <span className="font-bold text-indigo-600">
-                                                       {(() => {
-                            const baseAmount = item.price * item.quantity;
-                            let discountedAmount = baseAmount;
+                              {(() => {
+                                const baseAmount = item.price * item.quantity;
+                                let discountedAmount = baseAmount;
 
-                            // Apply item-level discount
-                            if (item.discount && item.discount.value > 0) {
-                              if (item.discount.type === 'percentage') {
-                                discountedAmount = baseAmount * (1 - item.discount.value / 100);
-                              } else {
-                                discountedAmount = baseAmount - item.discount.value;
-                              }
-                            }
+                                // Apply item-level discount
+                                if (item.discount && item.discount.value > 0) {
+                                  if (item.discount.type === 'percentage') {
+                                    discountedAmount = baseAmount * (1 - item.discount.value / 100);
+                                  } else {
+                                    discountedAmount = baseAmount - item.discount.value;
+                                  }
+                                }
 
-                            const gstRate = item.customGstRate || item.gstRate || 18;
-                            const taxAmount = (discountedAmount * gstRate) / 100;
-                            const total = discountedAmount + taxAmount;
-                            return formatCurrency(total);
-                          })()}
+                                const gstRate = item.customGstRate || item.gstRate || 18;
+                                const taxAmount = (discountedAmount * gstRate) / 100;
+                                const total = discountedAmount + taxAmount;
+                                return formatCurrency(total);
+                              })()}
                             </span>
                           </div>
                         </div>
-                        
+
                         <button
                           onClick={() => handleEditTaxDetails(item)}
                           className="w-full px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded hover:bg-indigo-200 font-semibold"
@@ -851,26 +885,24 @@ export default function POS() {
                         {discountingItemId === item._id ? (
                           <div className="space-y-2">
                             <p className="text-xs font-semibold text-amber-900">Discount Amount</p>
-                            
+
                             {/* Toggle Buttons for Discount Type */}
                             <div className="flex gap-1.5 mb-2">
                               <button
                                 onClick={() => setDiscountType('fixed')}
-                                className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded transition ${
-                                  discountType === 'fixed'
-                                    ? 'bg-amber-500 text-white'
-                                    : 'bg-white border border-amber-300 text-amber-700 hover:bg-amber-50'
-                                }`}
+                                className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded transition ${discountType === 'fixed'
+                                  ? 'bg-amber-500 text-white'
+                                  : 'bg-white border border-amber-300 text-amber-700 hover:bg-amber-50'
+                                  }`}
                               >
                                 ₹ Rupees
                               </button>
                               <button
                                 onClick={() => setDiscountType('percentage')}
-                                className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded transition ${
-                                  discountType === 'percentage'
-                                    ? 'bg-amber-500 text-white'
-                                    : 'bg-white border border-amber-300 text-amber-700 hover:bg-amber-50'
-                                }`}
+                                className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded transition ${discountType === 'percentage'
+                                  ? 'bg-amber-500 text-white'
+                                  : 'bg-white border border-amber-300 text-amber-700 hover:bg-amber-50'
+                                  }`}
                               >
                                 % Percent
                               </button>
@@ -913,7 +945,7 @@ export default function POS() {
                             onClick={() => handleEditDiscount(item)}
                             className="w-full px-2 py-1.5 bg-amber-100 text-amber-700 text-xs rounded hover:bg-amber-200 font-semibold transition"
                           >
-                            {item.discount && item.discount.value > 0 
+                            {item.discount && item.discount.value > 0
                               ? `💰 Discount: ${item.discount.value}${item.discount.type === 'percentage' ? '%' : '₹'}`
                               : '💰 Add Discount'
                             }
@@ -968,26 +1000,24 @@ export default function POS() {
                   {/* Sale-Level Discount */}
                   <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-300 rounded-lg p-3 md:p-4">
                     <p className="text-xs md:text-sm font-semibold text-orange-900 mb-3">💰 Overall Sale Discount</p>
-                    
+
                     {/* Toggle Buttons for Sale Discount Type */}
                     <div className="flex gap-2 mb-3">
                       <button
                         onClick={() => setSaleDiscountType('fixed')}
-                        className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded transition ${
-                          saleDiscountType === 'fixed'
-                            ? 'bg-orange-500 text-white'
-                            : 'bg-white border border-orange-300 text-orange-700 hover:bg-orange-50'
-                        }`}
+                        className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded transition ${saleDiscountType === 'fixed'
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-white border border-orange-300 text-orange-700 hover:bg-orange-50'
+                          }`}
                       >
                         ₹ Rupees
                       </button>
                       <button
                         onClick={() => setSaleDiscountType('percentage')}
-                        className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded transition ${
-                          saleDiscountType === 'percentage'
-                            ? 'bg-orange-500 text-white'
-                            : 'bg-white border border-orange-300 text-orange-700 hover:bg-orange-50'
-                        }`}
+                        className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded transition ${saleDiscountType === 'percentage'
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-white border border-orange-300 text-orange-700 hover:bg-orange-50'
+                          }`}
                       >
                         % Percent
                       </button>
@@ -1043,7 +1073,7 @@ export default function POS() {
 
                       cartItems.forEach(item => {
                         const base = item.price * item.quantity;
-                        
+
                         // Calculate item-level discount
                         let discountedAmount = base;
                         if (item.discount && item.discount.value > 0) {
@@ -1055,16 +1085,16 @@ export default function POS() {
                             discountedAmount = base - item.discount.value;
                           }
                         }
-                        
+
                         const gstRate = isGstBill ? (item.customGstRate || item.gstRate || 18) : 0;
                         const tax = (discountedAmount * gstRate) / 100;
                         baseTotal += base;
                         totalTax += tax;
                       });
-                      
+
                       let subtotalAfterItemDiscount = baseTotal - itemDiscounts + totalTax;
                       let saleLevelDiscount = 0;
-                      
+
                       // Calculate sale-level discount
                       if (saleDiscount && saleDiscount.value > 0) {
                         if (saleDiscount.type === 'percentage') {
@@ -1073,9 +1103,9 @@ export default function POS() {
                           saleLevelDiscount = saleDiscount.value;
                         }
                       }
-                      
+
                       const effectiveTotal = Math.max(0, subtotalAfterItemDiscount - saleLevelDiscount);
-                      
+
                       return (
                         <>
                           <div className="flex justify-between text-xs text-gray-700">
@@ -1479,7 +1509,7 @@ export default function POS() {
       {editingItemId && (() => {
         const currentItem = cartItems.find(item => item._id === editingItemId);
         if (!currentItem) return null;
-        
+
         const taxableAmount = currentItem.price * currentItem.quantity;
         const gstRate = parseFloat(editingGst) || 0;
         const taxAmount = (taxableAmount * gstRate) / 100;
@@ -1531,11 +1561,10 @@ export default function POS() {
                       <button
                         key={rate}
                         onClick={() => setEditingGst(rate.toString())}
-                        className={`py-2 px-3 rounded text-sm font-semibold transition ${
-                          parseFloat(editingGst) === rate
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
+                        className={`py-2 px-3 rounded text-sm font-semibold transition ${parseFloat(editingGst) === rate
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
                       >
                         {rate}%
                       </button>
@@ -1556,7 +1585,7 @@ export default function POS() {
                 {/* Amount Calculation */}
                 <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-lg border-2 border-green-200 space-y-2">
                   <h3 className="text-sm font-bold text-gray-800 mb-3">Amount Breakdown</h3>
-                  
+
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-700">Taxable Amount:</span>
                     <span className="font-semibold text-gray-900">Rs {taxableAmount.toFixed(2)}</span>

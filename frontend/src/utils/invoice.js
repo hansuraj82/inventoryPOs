@@ -123,7 +123,7 @@ const calculateGSTBreakdown = (items) => {
 
   (items || []).forEach(item => {
     const basePrice = Number(item.price) * Number(item.quantity);
-    
+
     // Apply item-level discount if any
     let itemDiscount = 0;
     if (item.discount && item.discount.value > 0) {
@@ -133,7 +133,7 @@ const calculateGSTBreakdown = (items) => {
         itemDiscount = Number(item.discount.value) || 0;
       }
     }
-    
+
     const taxableValue = basePrice - itemDiscount;
     const gstRate = Number(item.gstRate) || 0;
     const taxAmount = (taxableValue * gstRate) / 100;
@@ -295,14 +295,14 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     detailY += detailLineHeight;
   }
 
-  currentY += 20;
+  currentY += 25;
 
   // =================== INVOICE & CUSTOMER INFO ===================
   checkPageBreak(12);
 
   doc.setFillColor(...COLORS.lightBg);
-  doc.roundedRect(MARGIN_LEFT, currentY, CONTENT_WIDTH / 2 - 2, 12, 1, 1, 'F');
-  doc.roundedRect(MARGIN_LEFT + CONTENT_WIDTH / 2 + 2, currentY, CONTENT_WIDTH / 2 - 2, 12, 1, 1, 'F');
+  doc.roundedRect(MARGIN_LEFT, currentY, CONTENT_WIDTH / 2 - 2, 14, 1, 1, 'F');
+  doc.roundedRect(MARGIN_LEFT + CONTENT_WIDTH / 2 + 2, currentY, CONTENT_WIDTH / 2 - 2, 14, 1, 1, 'F');
 
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bolditalic');
@@ -336,7 +336,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     doc.text(`Address: ${saleData.customer.address}`, leftBoxX, currentY + 13);
   }
 
-  currentY += 15;
+  currentY += 16;
 
   // =================== ITEMS TABLE ===================
   checkPageBreak(25);
@@ -401,7 +401,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     const itemPrice = Number(item.price) || 0;
     const itemQty = Number(item.quantity) || 0;
     const baseAmount = itemPrice * itemQty;
-    
+
     // Apply item-level discount if any
     let itemDiscount = 0;
     if (item.discount && item.discount.value > 0) {
@@ -411,7 +411,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
         itemDiscount = Number(item.discount.value) || 0;
       }
     }
-    
+
     const taxableValue = baseAmount - itemDiscount;
     const gstRate = Number(item.gstRate) || 0;
     const taxAmount = (taxableValue * gstRate) / 100;
@@ -472,8 +472,8 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
       doc.setFontSize(6);
       doc.setFont('helvetica', 'italic');
       doc.setTextColor(239, 68, 68); // Red for discount
-      const discountText = item.discount.type === 'percentage' 
-        ? `Discount: ${item.discount.value}% (-₹${itemDiscount.toFixed(2)})` 
+      const discountText = item.discount.type === 'percentage'
+        ? `Discount: ${item.discount.value}% (- Rs ${itemDiscount.toFixed(2)})`
         : `Discount: - ${itemDiscount.toFixed(2)}`;
       doc.text(discountText, MARGIN_LEFT + 10, currentY);
     }
@@ -543,7 +543,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
     items.forEach(item => {
       const baseAmount = Number(item.price) * Number(item.quantity);
-      
+
       // Apply item-level discount if any
       let itemDiscount = 0;
       if (item.discount && item.discount.value > 0) {
@@ -553,7 +553,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
           itemDiscount = Number(item.discount.value) || 0;
         }
       }
-      
+
       const taxableValue = baseAmount - itemDiscount;
       const gstRate = Number(item.gstRate) || 0;
       const taxAmount = (taxableValue * gstRate) / 100;
@@ -584,7 +584,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   let summaryY = currentY + 10;
   const taxSumLabelX = taxSummaryRightX + 3;
   const taxSumValueX = taxSummaryRightX + taxSummaryRightWidth - 3;
-  
+
   // Subtotal (before discounts)
   const baseSubtotal = totalTaxable + (totalItemDiscount || 0);
   doc.setFontSize(8);
@@ -630,7 +630,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
   // Total Discount (if any)
   const totalDiscount = (saleData.totalDiscountAmount || 0);
-  const saleDiscount = (saleData.saleDiscount.value || 0);
+  const saleDiscount = (saleData.saleDiscount.amount || 0);
   if (saleDiscount > 0) {
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(239, 68, 68); // Red color for discount
@@ -640,7 +640,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     summaryY += 5;
   }
 
-    if (totalDiscount > 0) {
+  if (totalDiscount > 0) {
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(239, 68, 68); // Red color for discount
     doc.text('Total Discount:', taxSumLabelX, summaryY);

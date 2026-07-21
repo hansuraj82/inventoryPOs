@@ -6,7 +6,8 @@ const {
   createSale,
   getTodaySales,
   getDashboardStats,
-  getSalesAnalytics
+  getSalesAnalytics,
+  updateSale
 } = require('../controllers/saleController');
 const { protect } = require('../middleware/auth');
 const { createLimiter, searchLimiter } = require('../middleware/rateLimiter');
@@ -24,5 +25,6 @@ router.get('/stats/today', getTodaySales);
 router.get('/stats/dashboard', getDashboardStats);
 router.post('/', createLimiter, createSale);
 router.get('/:id', getSale);
+router.put('/:id', updateSale);
 
 module.exports = router;

@@ -105,15 +105,21 @@ export default function Dashboard() {
             onClick={handleViewTodaysSales}
             className="card hover:shadow-lg transition-shadow cursor-pointer text-left"
           >
-            <h3 className="text-gray-600 text-xs md:text-sm font-semibold mb-2">Today Sales</h3>
+            <h3 className="text-gray-600 text-xs md:text-sm font-semibold mb-2">Today's Sales</h3>
             <p className="text-2xl md:text-3xl font-bold text-green-600">{stats.todaySales}</p>
             <p className="text-xs text-gray-500 mt-2">Click to view details</p>
           </button>
 
           <div className="card">
-            <h3 className="text-gray-600 text-xs md:text-sm font-semibold mb-2">Today Revenue</h3>
+            <h3 className="text-gray-600 text-xs md:text-sm font-semibold mb-2">Today's Revenue</h3>
             <p className="text-2xl md:text-3xl font-bold text-indigo-600">
               {formatCurrency(stats.todayRevenue)}
+            </p>
+          </div>
+                    <div className="card">
+            <h3 className="text-gray-600 text-xs md:text-sm font-semibold mb-2">Today's Due</h3>
+            <p className="text-2xl md:text-3xl font-bold text-red-600">
+              {formatCurrency(stats.todayDue)}
             </p>
           </div>
         </div>
