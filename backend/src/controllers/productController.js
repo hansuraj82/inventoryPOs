@@ -173,7 +173,7 @@ exports.createProduct = async (req, res, next) => {
       sellingPrice: parseFloat(sellingPrice) || 0,
       costPrice: parseFloat(costPrice) || 0,
       quantity: parseInt(quantity, 10) || 0,
-      barcode: barcode || null,
+      barcode: (barcode && barcode.trim() !== '') ? barcode.trim() : undefined,
       category: category || 'General',
       sku,
       description,
@@ -220,7 +220,7 @@ exports.updateProduct = async (req, res, next) => {
     // Validate that costPrice <= sellingPrice
     const sellingPrice = req.body.sellingPrice ? Number(req.body.sellingPrice) : product.sellingPrice;
     const costPrice = req.body.costPrice ? Number(req.body.costPrice) : product.costPrice;
-    
+
     if (costPrice && costPrice > sellingPrice) {
       return res.status(400).json({
         success: false,
@@ -229,11 +229,11 @@ exports.updateProduct = async (req, res, next) => {
     }
 
     // Update fields - sync price with sellingPrice and convert numbers
-    const updateData = { 
+    const updateData = {
       ...req.body,
       updatedAt: Date.now()
     };
-    
+
     // Convert numeric fields to numbers
     if (req.body.sellingPrice) {
       updateData.price = Number(req.body.sellingPrice);
@@ -258,7 +258,7 @@ exports.updateProduct = async (req, res, next) => {
         newCostPrice: req.body.costPrice ? Number(req.body.costPrice) : product.costPrice,
         changedAt: new Date()
       };
-      
+
       if (!updateData.priceHistory) {
         updateData.priceHistory = [];
       }
