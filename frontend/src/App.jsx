@@ -14,6 +14,10 @@ const Products = React.lazy(() => import('./pages/Products'));
 const POS = React.lazy(() => import('./pages/POS'));
 const Sales = React.lazy(() => import('./pages/Sales'));
 const Settings = React.lazy(() => import('./pages/Settings'));
+// const StaffManagement = React.lazy(() => import('./pages/StaffManagement'));
+// const StaffAllocation = React.lazy(() => import('./pages/StaffAllocation'));
+// const StaffPerformance = React.lazy(() => import('./pages/StaffPerformance'));
+const BarcodePrintSheet = React.lazy(() =>import('./pages/BarcodePrintSheet'))
 
 function App() {
   const { token } = useAuthStore();
@@ -108,6 +112,51 @@ function App() {
             </PrivateRoute>
           }
         />
+
+        <Route
+          path="/Barcode"
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<FullPageLoader />}>
+                <BarcodePrintSheet />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+
+
+        {/* <Route
+          path="/staff-management"
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<FullPageLoader />}>
+                <StaffManagement />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/staff-allocation"
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<FullPageLoader />}>
+                <StaffAllocation />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/staff-performance"
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<FullPageLoader />}>
+                <StaffPerformance />
+              </Suspense>
+            </PrivateRoute>
+          }
+        /> */}
 
         <Route path="/" element={token ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} />
       </Routes>
