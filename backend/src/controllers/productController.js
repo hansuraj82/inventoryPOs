@@ -206,9 +206,17 @@ exports.updateProduct = async (req, res, next) => {
       });
     }
 
-    // Check if new barcode already exists (only if barcode is being changed)
-    if (req.body.barcode && req.body.barcode !== product.barcode) {
-      const existingProduct = await Product.findOne({ barcode: req.body.barcode });
+    // Clean and normalize the barcode from request
+    const cleanedBarcode = (req.body.barcode && req.body.barcode.trim() !== '') 
+      ? req.body.barcode.trim() 
+      : undefined;
+
+    // Check if new barcode already exists (only if barcode is being changed and is provided)
+    if (cleanedBarcode && cleanedBarcode !== product.barcode) {
+      const existingProduct = await Product.findOne({ 
+        barcode: cleanedBarcode,
+        _id: { $ne: req.params.id } // Exclude current product from check
+      });
       if (existingProduct) {
         return res.status(400).json({
           success: false,
@@ -231,8 +239,15 @@ exports.updateProduct = async (req, res, next) => {
     // Update fields - sync price with sellingPrice and convert numbers
     const updateData = {
       ...req.body,
+      barcode: cleanedBarcode, // Use the sanitized barcode (undefined if empty)
       updatedAt: Date.now()
     };
+
+    // If barcode was explicitly cleared or set to undefined, ensure MongoDB removes/omits it
+    if (!cleanedBarcode) {
+      updateData.$unset = { barcode: "" };
+      delete updateData.barcode;
+    }
 
     // Convert numeric fields to numbers
     if (req.body.sellingPrice) {
