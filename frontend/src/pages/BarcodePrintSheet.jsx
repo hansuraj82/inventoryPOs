@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import Layout from '../components/Layout';
 
-export default function InteractiveBarcodeStudio() {
+export default function BarcodePrintSheet() {
     // --- Master Items Queue ---
     const [items, setItems] = useState([
         {
