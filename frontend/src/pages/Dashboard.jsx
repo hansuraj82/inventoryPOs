@@ -6,6 +6,7 @@ import SalesGraph from '../components/SalesGraph';
 import { saleAPI, productAPI } from '../services/api';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import { DashboardFullSkeleton, ModalProductsContentSkeleton, ModalSalesContentSkeleton, ModalHeaderSkeleton, ModalFooterSkeleton } from '../components/Skeletons';
+import { useAuthStore } from '../store/store';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingModal, setIsLoadingModal] = useState(false);
   const [detailsModal, setDetailsModal] = useState({ isOpen: false, type: null, data: [] });
+  const { user } = useAuthStore();
 
   useEffect(() => {
     document.title = 'Dashboard - Dukanbill';
@@ -36,6 +38,10 @@ export default function Dashboard() {
 
   const handleViewProducts = () => {
     navigate('/products');
+  };
+
+  const handleViewBarcodes = () => {
+    navigate('/Barcode');
   };
 
   const handleViewLowStock = async () => {
@@ -116,12 +122,19 @@ export default function Dashboard() {
               {formatCurrency(stats.todayRevenue)}
             </p>
           </div>
-                    <div className="card">
+          <div className="card">
             <h3 className="text-gray-600 text-xs md:text-sm font-semibold mb-2">Today's Due</h3>
             <p className="text-2xl md:text-3xl font-bold text-red-600">
               {formatCurrency(stats.todayDue)}
             </p>
           </div>
+          {user.barcodeAccess && <button
+            onClick={handleViewBarcodes}
+            className="card hover:shadow-lg transition-shadow cursor-pointer text-left"
+          >
+            <p className="text-2xl md:text-3xl font-bold text-blue-900">Barcodes</p>
+            <p className="text-xs text-gray-500 mt-2">Generate Barcodes</p>
+          </button>}
         </div>
       )}
 
@@ -224,8 +237,8 @@ export default function Dashboard() {
                         <p className="text-gray-600 text-xs font-semibold">Qty</p>
                         <p
                           className={`font-semibold ${product.quantity <= product.minStock
-                              ? 'text-red-600'
-                              : 'text-green-600'
+                            ? 'text-red-600'
+                            : 'text-green-600'
                             }`}
                         >
                           {product.quantity}

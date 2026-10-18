@@ -34,6 +34,10 @@ const userSchema = new mongoose.Schema({
     enum: ['admin', 'staff'],
     default: 'admin'
   },
+  barcodeAccess: {
+    type: Boolean,
+    default: false
+  },
   // Business Details for GST Invoice
   businessDetails: {
     gstin: {

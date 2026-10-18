@@ -114,7 +114,9 @@ exports.login = async (req, res, next) => {
         phone: user.phone,
         shopName: user.shopName,
         role: user.role,
-        businessDetails: user.businessDetails || {}
+        businessDetails: user.businessDetails || {},
+        barcodeAccess: user.barcodeAccess
+
       }
     });
   } catch (error) {
