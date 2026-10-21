@@ -504,7 +504,7 @@ export default function BarcodePrintSheet() {
                                 />
                                 {label.showPrice && label.price && (
                                     <span className="sticker-price" style={{ fontSize: `${fontSize}px` }}>
-                                        {label.price}
+                                        ₹{label.price}
                                     </span>
                                 )}
                                 {label.showSerial && (
