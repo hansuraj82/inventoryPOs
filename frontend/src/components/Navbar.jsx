@@ -136,7 +136,7 @@ export default function Navbar() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/');
   };
 
   // Helper to highlight the current page
@@ -157,7 +157,7 @@ export default function Navbar() {
           
           {/* Brand Logo */}
           <div className="flex items-center gap-2">
-            <Link to="/dashboard" className="flex items-center gap-2 group">
+            <Link to="/" className="flex items-center gap-2 group">
               <div className="bg-indigo-600 p-1.5 rounded-lg group-hover:rotate-3 transition-transform shadow-lg shadow-indigo-500/20">
                 <Store className="text-white" size={20} />
               </div>
