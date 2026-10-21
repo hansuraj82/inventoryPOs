@@ -333,7 +333,8 @@ exports.createSale = async (req, res, next) => {
         pan: user.businessDetails?.pan || '',
         address: user.businessDetails?.businessAddress || '',
         phone: user.businessDetails?.businessPhone || '',
-        email: user.businessDetails?.businessEmail || ''
+        email: user.businessDetails?.businessEmail || '',
+        upiId: user.businessDetails.upiId || ''
       },
       createdAt
     });

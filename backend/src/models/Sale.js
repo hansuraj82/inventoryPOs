@@ -145,7 +145,8 @@ const saleSchema = new mongoose.Schema({
     pan: String,
     address: String,
     phone: String,
-    email: String
+    email: String,
+    upiId: String
   },
   notes: String,
   isGstBill: {
