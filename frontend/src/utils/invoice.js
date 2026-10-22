@@ -2839,7 +2839,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     doc.saveGraphicsState();
 
     // Set transparency/opacity (e.g., 0.08 for very faint, elegant watermark)
-    doc.setGState(new doc.GState({ opacity: 0.1 }));
+    doc.setGState(new doc.GState({ opacity: 0.08 }));
 
     doc.setTextColor(79, 70, 229)
     doc.setFont('helvetica', 'bolditalic');
