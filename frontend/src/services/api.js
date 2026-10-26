@@ -30,6 +30,10 @@ api.interceptors.response.use(
   }
 );
 
+export const  healthCheck =  async() => {
+  await api.get('/health');
+}
+
 // Auth API calls
 export const authAPI = {
   register: (userData) => api.post('/auth/register', userData),

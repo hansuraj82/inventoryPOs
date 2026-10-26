@@ -2377,6 +2377,496 @@
 
 
 
+// import React, { useCallback, useEffect, useRef, useState } from 'react';
+// import { Html5Qrcode } from 'html5-qrcode';
+// import { toast } from 'react-hot-toast';
+// import {
+//   X,
+//   Keyboard,
+//   ScanBarcode,
+//   AlertCircle,
+//   CheckCircle2,
+//   Loader2,
+//   Zap,
+//   ZapOff,
+// } from 'lucide-react';
+
+// const SCANNER_REGION_ID = 'interactive-barcode-scanner-viewport';
+// const DUPLICATE_SCAN_LOCK_MS = 900;
+
+// const BarcodeScanner = ({ onScan, onClose }) => {
+//   const [error, setError] = useState('');
+//   const [isStarting, setIsStarting] = useState(true);
+//   const [manualEntry, setManualEntry] = useState(false);
+//   const [manualCode, setManualCode] = useState('');
+//   const [isSubmitting, setIsSubmitting] = useState(false);
+//   const [torchOn, setTorchOn] = useState(false);
+//   const [hasTorch, setHasTorch] = useState(false);
+
+//   const scannerRef = useRef(null);
+//   const isScanningRef = useRef(false);
+//   const isMountedRef = useRef(false);
+//   const isSubmittingRef = useRef(false);
+//   const closeRequestedRef = useRef(false);
+//   const lastScannedRef = useRef('');
+//   const lastScannedAtRef = useRef(0);
+//   const duplicateTimerRef = useRef(null);
+//   const startPromiseRef = useRef(null);
+//   const stopPromiseRef = useRef(null);
+//   const onScanRef = useRef(onScan);
+//   const onCloseRef = useRef(onClose);
+
+//   useEffect(() => {
+//     onScanRef.current = onScan;
+//     onCloseRef.current = onClose;
+//   }, [onScan, onClose]);
+
+//   const stopCamera = useCallback(async (scannerOverride = null) => {
+//     const scanner = scannerOverride || scannerRef.current;
+//     if (!scanner) return;
+
+//     // Avoid overlapping stop calls against html5-qrcode.
+//     if (stopPromiseRef.current) {
+//       await stopPromiseRef.current;
+//       return;
+//     }
+
+//     if (!isScanningRef.current) {
+//       // If start() is still pending, its continuation will see closeRequested
+//       // and stop the camera immediately after start resolves.
+//       return;
+//     }
+
+//     stopPromiseRef.current = (async () => {
+//       try {
+//         await scanner.stop();
+//       } catch (err) {
+//         // A concurrent stop/unmount can make stop() reject. Still try to
+//         // release the underlying video tracks below.
+//         console.warn('Barcode scanner stop warning:', err);
+//       } finally {
+//         isScanningRef.current = false;
+
+//         try {
+//           const video = document.querySelector(`#${SCANNER_REGION_ID} video`);
+//           const stream = video?.srcObject;
+//           stream?.getTracks?.().forEach((track) => track.stop());
+//           if (video) {
+//             video.pause();
+//             video.srcObject = null;
+//           }
+//         } catch (err) {
+//           console.warn('Could not release scanner video tracks:', err);
+//         }
+
+//         if (scannerRef.current === scanner) {
+//           scannerRef.current = null;
+//         }
+//       }
+//     })();
+
+//     try {
+//       await stopPromiseRef.current;
+//     } finally {
+//       stopPromiseRef.current = null;
+//     }
+//   }, []);
+
+//   const closeScanner = useCallback(async () => {
+//     if (closeRequestedRef.current) return;
+//     closeRequestedRef.current = true;
+
+//     if (duplicateTimerRef.current) {
+//       clearTimeout(duplicateTimerRef.current);
+//       duplicateTimerRef.current = null;
+//     }
+
+//     const scanner = scannerRef.current;
+//     await stopCamera(scanner);
+
+//     if (isMountedRef.current) {
+//       onCloseRef.current?.();
+//     }
+//   }, [stopCamera]);
+
+//   const handleSuccessfulScan = useCallback(async (decodedText) => {
+//     const cleanText = String(decodedText || '').trim();
+
+//     if (
+//       !cleanText ||
+//       !isMountedRef.current ||
+//       closeRequestedRef.current ||
+//       isSubmittingRef.current
+//     ) {
+//       return;
+//     }
+
+//     const now = Date.now();
+//     if (
+//       cleanText === lastScannedRef.current &&
+//       now - lastScannedAtRef.current < DUPLICATE_SCAN_LOCK_MS
+//     ) {
+//       return;
+//     }
+
+//     lastScannedRef.current = cleanText;
+//     lastScannedAtRef.current = now;
+//     isSubmittingRef.current = true;
+//     setIsSubmitting(true);
+
+//     if (typeof navigator !== 'undefined' && navigator.vibrate) {
+//       navigator.vibrate(35);
+//     }
+
+//     try {
+//       await onScanRef.current?.(cleanText);
+
+//       if (isMountedRef.current && !closeRequestedRef.current) {
+//         toast.success(`Scanned: ${cleanText}`, {
+//           duration: 1000,
+//           position: 'top-center',
+//         });
+//       }
+//     } catch (err) {
+//       console.error('Scan handling failed:', err);
+//       if (isMountedRef.current) {
+//         toast.error('Failed to process product. Please try again.');
+//       }
+//     } finally {
+//       isSubmittingRef.current = false;
+//       if (isMountedRef.current) {
+//         setIsSubmitting(false);
+//       }
+
+//       // Do not restart the camera. Just allow the next scan after a short
+//       // lockout to avoid repeatedly reading the same barcode in the frame.
+//       if (duplicateTimerRef.current) {
+//         clearTimeout(duplicateTimerRef.current);
+//       }
+//       duplicateTimerRef.current = setTimeout(() => {
+//         if (lastScannedRef.current === cleanText) {
+//           lastScannedRef.current = '';
+//           lastScannedAtRef.current = 0;
+//         }
+//         duplicateTimerRef.current = null;
+//       }, DUPLICATE_SCAN_LOCK_MS);
+//     }
+//   }, []);
+
+//   useEffect(() => {
+//     isMountedRef.current = true;
+//     closeRequestedRef.current = false;
+
+//     let cancelled = false;
+//     let scannerInstance = null;
+
+//     const startCamera = async () => {
+//       try {
+//         setIsStarting(true);
+//         setError('');
+
+//         const element = document.getElementById(SCANNER_REGION_ID);
+//         if (!element) {
+//           throw new Error('Scanner viewport is not available.');
+//         }
+
+//         scannerInstance = new Html5Qrcode(SCANNER_REGION_ID, {
+//           verbose: false,
+//         });
+//         scannerRef.current = scannerInstance;
+
+//         const config = {
+//           fps: 20,
+//           qrbox: { width: 260, height: 140 },
+//           aspectRatio: 16 / 9,
+//           disableFlip: false,
+//         };
+
+//         const startPromise = scannerInstance.start(
+//           { facingMode: 'environment' },
+//           config,
+//           (decodedText) => {
+//             if (!cancelled && isMountedRef.current) {
+//               void handleSuccessfulScan(decodedText);
+//             }
+//           },
+//           () => {
+//             // Frame parse misses are expected during continuous scanning.
+//           }
+//         );
+
+//         startPromiseRef.current = startPromise;
+//         await startPromise;
+
+//         isScanningRef.current = true;
+//         startPromiseRef.current = null;
+
+//         if (cancelled || closeRequestedRef.current || !isMountedRef.current) {
+//           await stopCamera(scannerInstance);
+//           return;
+//         }
+
+//         setIsStarting(false);
+
+//         try {
+//           const track = scannerInstance.getRunningTrack?.();
+//           const capabilities = track?.getCapabilities?.();
+//           setHasTorch(Boolean(capabilities?.torch));
+//         } catch {
+//           setHasTorch(false);
+//         }
+//       } catch (err) {
+//         startPromiseRef.current = null;
+//         if (cancelled || !isMountedRef.current) return;
+
+//         console.error('Camera start error:', err);
+//         setError(
+//           err?.name === 'NotAllowedError' ||
+//             err?.name === 'PermissionDeniedError' ||
+//             err?.message?.toLowerCase?.().includes('permission')
+//             ? 'Camera permission was denied. Allow camera access in browser settings or use manual entry.'
+//             : err?.name === 'NotFoundError'
+//               ? 'No camera was found. Use manual entry instead.'
+//               : 'Unable to access the camera. Try manual entry below.'
+//         );
+//         setIsStarting(false);
+//         isScanningRef.current = false;
+
+//         try {
+//           const video = document.querySelector(`#${SCANNER_REGION_ID} video`);
+//           video?.srcObject?.getTracks?.().forEach((track) => track.stop());
+//           if (video) {
+//             video.pause();
+//             video.srcObject = null;
+//           }
+//         } catch {
+//           // Ignore best-effort cleanup failures.
+//         }
+
+//         if (scannerRef.current === scannerInstance) {
+//           scannerRef.current = null;
+//         }
+//       }
+//     };
+
+//     void startCamera();
+
+//     return () => {
+//       cancelled = true;
+//       isMountedRef.current = false;
+//       closeRequestedRef.current = true;
+
+//       if (duplicateTimerRef.current) {
+//         clearTimeout(duplicateTimerRef.current);
+//         duplicateTimerRef.current = null;
+//       }
+
+//       const scanner = scannerRef.current || scannerInstance;
+
+//       // If the camera has started, stop it now. If start is still pending,
+//       // startCamera() checks cancelled after the promise resolves and stops it.
+//       if (scanner && isScanningRef.current) {
+//         void stopCamera(scanner);
+//       } else if (scanner) {
+//         try {
+//           const video = document.querySelector(`#${SCANNER_REGION_ID} video`);
+//           video?.srcObject?.getTracks?.().forEach((track) => track.stop());
+//           if (video) {
+//             video.pause();
+//             video.srcObject = null;
+//           }
+//         } catch {
+//           // Ignore best-effort cleanup failures.
+//         }
+//       }
+//     };
+//   }, [handleSuccessfulScan, stopCamera]);
+
+//   const toggleTorch = async () => {
+//     const scanner = scannerRef.current;
+//     if (!scanner || !hasTorch || !isScanningRef.current) return;
+
+//     try {
+//       const nextTorchState = !torchOn;
+//       await scanner.applyVideoConstraints({
+//         advanced: [{ torch: nextTorchState }],
+//       });
+//       setTorchOn(nextTorchState);
+//     } catch (err) {
+//       console.warn('Torch control failed:', err);
+//       toast.error('Could not change the flashlight setting.');
+//     }
+//   };
+
+//   const handleManualSubmit = async (event) => {
+//     event.preventDefault();
+
+//     const code = manualCode.trim();
+//     if (!code || isSubmittingRef.current || closeRequestedRef.current) return;
+
+//     isSubmittingRef.current = true;
+//     setIsSubmitting(true);
+
+//     try {
+//       await onScanRef.current?.(code);
+//       if (isMountedRef.current) {
+//         setManualCode('');
+//       }
+//     } catch (err) {
+//       console.error('Manual barcode handling failed:', err);
+//       if (isMountedRef.current) toast.error('Failed to process barcode.');
+//     } finally {
+//       isSubmittingRef.current = false;
+//       if (isMountedRef.current) setIsSubmitting(false);
+//     }
+//   };
+
+//   return (
+//     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 backdrop-blur-sm sm:p-5">
+//       <div className="flex max-h-[96vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+//         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+//           <div className="flex items-center gap-3">
+//             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+//               <ScanBarcode size={22} />
+//             </div>
+//             <div>
+//               <h2 className="text-base font-black text-slate-900">DukanBill POS Scanner</h2>
+              
+//             </div>
+//           </div>
+
+//           <div className="flex items-center gap-2">
+//             {hasTorch && !error && (
+//               <button
+//                 type="button"
+//                 onClick={toggleTorch}
+//                 disabled={isSubmitting}
+//                 className={`rounded-xl p-2.5 transition ${
+//                   torchOn
+//                     ? 'bg-amber-100 text-amber-700'
+//                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+//                 }`}
+//                 title="Toggle flashlight"
+//                 aria-label="Toggle flashlight"
+//               >
+//                 {torchOn ? <Zap size={18} /> : <ZapOff size={18} />}
+//               </button>
+//             )}
+//             <button
+//               type="button"
+//               onClick={() => void closeScanner()}
+//               className="rounded-xl bg-slate-100 p-2.5 text-slate-600 transition hover:bg-slate-200"
+//               aria-label="Close scanner"
+//             >
+//               <X size={18} />
+//             </button>
+//           </div>
+//         </div>
+
+//         <div className="space-y-4 overflow-y-auto p-5">
+//           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-950 shadow-inner">
+//             <div id={SCANNER_REGION_ID} className="h-full w-full" />
+
+//             {isStarting && (
+//               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-950 text-white">
+//                 <Loader2 size={32} className="animate-spin text-indigo-500" />
+//                 <p className="text-xs font-bold tracking-wide">Starting camera…</p>
+//               </div>
+//             )}
+
+//             {error && (
+//               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-950 p-6 text-center text-white">
+//                 <AlertCircle size={36} className="text-rose-500" />
+//                 <p className="text-xs text-slate-300">{error}</p>
+//               </div>
+//             )}
+
+//             {isSubmitting && !error && (
+//               <div className="absolute inset-0 z-20 flex items-center justify-center bg-indigo-950/70">
+//                 <div className="flex items-center gap-2.5 rounded-2xl bg-white px-5 py-3 text-xs font-bold text-slate-900 shadow-xl">
+//                   <Loader2 size={16} className="animate-spin text-indigo-600" />
+//                   Adding item to bill…
+//                 </div>
+//               </div>
+//             )}
+//           </div>
+
+//           <div className="flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3">
+//             <CheckCircle2 size={18} className="shrink-0 text-indigo-600" />
+//             <p className="text-xs font-semibold text-indigo-900">
+//               Scan each product in sequence. The camera stays on until you close the scanner or finish scanning.
+//             </p>
+//           </div>
+
+//           <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+//             <button
+//               type="button"
+//               onClick={() => setManualEntry((current) => !current)}
+//               className="flex w-full items-center justify-between text-left"
+//               aria-expanded={manualEntry}
+//             >
+//               <span className="flex items-center gap-2 text-xs font-bold text-slate-700">
+//                 <Keyboard size={16} className="text-slate-500" />
+//                 Type barcode manually
+//               </span>
+//               <span className="text-xs font-bold text-indigo-600">
+//                 {manualEntry ? 'Hide' : 'Open'}
+//               </span>
+//             </button>
+
+//             {manualEntry && (
+//               <form onSubmit={handleManualSubmit} className="mt-3 space-y-2.5">
+//                 <input
+//                   type="text"
+//                   value={manualCode}
+//                   onChange={(event) => setManualCode(event.target.value)}
+//                   placeholder="Type SKU or barcode number…"
+//                   autoFocus
+//                   autoComplete="off"
+//                   disabled={isSubmitting}
+//                   className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 disabled:opacity-60"
+//                 />
+//                 <button
+//                   type="submit"
+//                   disabled={!manualCode.trim() || isSubmitting}
+//                   className="w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white shadow-md shadow-indigo-600/20 transition hover:bg-indigo-500 disabled:opacity-50"
+//                 >
+//                   {isSubmitting ? 'Adding…' : 'Add to bill'}
+//                 </button>
+//               </form>
+//             )}
+//           </div>
+//         </div>
+
+//         <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-5 py-3.5">
+//           <button
+//             type="button"
+//             onClick={() => void closeScanner()}
+//             className="w-full rounded-xl bg-slate-900 py-3 text-xs font-bold text-white shadow-md transition hover:bg-slate-800"
+//           >
+//             Done Scanning
+//           </button>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default BarcodeScanner
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { toast } from 'react-hot-toast';
@@ -2425,24 +2915,17 @@ const BarcodeScanner = ({ onScan, onClose }) => {
     const scanner = scannerOverride || scannerRef.current;
     if (!scanner) return;
 
-    // Avoid overlapping stop calls against html5-qrcode.
     if (stopPromiseRef.current) {
       await stopPromiseRef.current;
       return;
     }
 
-    if (!isScanningRef.current) {
-      // If start() is still pending, its continuation will see closeRequested
-      // and stop the camera immediately after start resolves.
-      return;
-    }
+    if (!isScanningRef.current) return;
 
     stopPromiseRef.current = (async () => {
       try {
         await scanner.stop();
       } catch (err) {
-        // A concurrent stop/unmount can make stop() reject. Still try to
-        // release the underlying video tracks below.
         console.warn('Barcode scanner stop warning:', err);
       } finally {
         isScanningRef.current = false;
@@ -2538,8 +3021,6 @@ const BarcodeScanner = ({ onScan, onClose }) => {
         setIsSubmitting(false);
       }
 
-      // Do not restart the camera. Just allow the next scan after a short
-      // lockout to avoid repeatedly reading the same barcode in the frame.
       if (duplicateTimerRef.current) {
         clearTimeout(duplicateTimerRef.current);
       }
@@ -2575,9 +3056,10 @@ const BarcodeScanner = ({ onScan, onClose }) => {
         });
         scannerRef.current = scannerInstance;
 
+        // Optimized proportions for effortless retail barcode scanning
         const config = {
-          fps: 20,
-          qrbox: { width: 260, height: 140 },
+          fps: 25,
+          qrbox: { width: 300, height: 120 }, // Wider box fits linear retail barcodes perfectly
           aspectRatio: 16 / 9,
           disableFlip: false,
         };
@@ -2590,9 +3072,7 @@ const BarcodeScanner = ({ onScan, onClose }) => {
               void handleSuccessfulScan(decodedText);
             }
           },
-          () => {
-            // Frame parse misses are expected during continuous scanning.
-          }
+          () => {}
         );
 
         startPromiseRef.current = startPromise;
@@ -2624,10 +3104,8 @@ const BarcodeScanner = ({ onScan, onClose }) => {
           err?.name === 'NotAllowedError' ||
             err?.name === 'PermissionDeniedError' ||
             err?.message?.toLowerCase?.().includes('permission')
-            ? 'Camera permission was denied. Allow camera access in browser settings or use manual entry.'
-            : err?.name === 'NotFoundError'
-              ? 'No camera was found. Use manual entry instead.'
-              : 'Unable to access the camera. Try manual entry below.'
+            ? 'Camera permission was denied. Allow camera access in browser settings.'
+            : 'Unable to access the camera. Try manual entry below.'
         );
         setIsStarting(false);
         isScanningRef.current = false;
@@ -2639,9 +3117,7 @@ const BarcodeScanner = ({ onScan, onClose }) => {
             video.pause();
             video.srcObject = null;
           }
-        } catch {
-          // Ignore best-effort cleanup failures.
-        }
+        } catch {}
 
         if (scannerRef.current === scannerInstance) {
           scannerRef.current = null;
@@ -2662,9 +3138,6 @@ const BarcodeScanner = ({ onScan, onClose }) => {
       }
 
       const scanner = scannerRef.current || scannerInstance;
-
-      // If the camera has started, stop it now. If start is still pending,
-      // startCamera() checks cancelled after the promise resolves and stops it.
       if (scanner && isScanningRef.current) {
         void stopCamera(scanner);
       } else if (scanner) {
@@ -2675,9 +3148,7 @@ const BarcodeScanner = ({ onScan, onClose }) => {
             video.pause();
             video.srcObject = null;
           }
-        } catch {
-          // Ignore best-effort cleanup failures.
-        }
+        } catch {}
       }
     };
   }, [handleSuccessfulScan, stopCamera]);
@@ -2722,7 +3193,7 @@ const BarcodeScanner = ({ onScan, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 backdrop-blur-sm sm:p-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-3 backdrop-blur-md sm:p-5">
       <div className="flex max-h-[96vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
           <div className="flex items-center gap-3">
@@ -2731,7 +3202,6 @@ const BarcodeScanner = ({ onScan, onClose }) => {
             </div>
             <div>
               <h2 className="text-base font-black text-slate-900">DukanBill POS Scanner</h2>
-              
             </div>
           </div>
 
@@ -2764,25 +3234,35 @@ const BarcodeScanner = ({ onScan, onClose }) => {
         </div>
 
         <div className="space-y-4 overflow-y-auto p-5">
+          {/* Camera Viewport with custom overlay frame */}
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-950 shadow-inner">
-            <div id={SCANNER_REGION_ID} className="h-full w-full" />
+            <div id={SCANNER_REGION_ID} className="h-full w-full [&_video]:object-cover" />
+
+            {/* Visual targeting laser line */}
+            {!isStarting && !error && (
+              <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center">
+                <div className="w-[300px] h-12 border-2 border-indigo-400/60 rounded-xl relative flex items-center justify-center">
+                  <div className="absolute inset-x-0 h-0.5 bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.9)] animate-pulse" />
+                </div>
+              </div>
+            )}
 
             {isStarting && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-950 text-white">
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-slate-950 text-white">
                 <Loader2 size={32} className="animate-spin text-indigo-500" />
-                <p className="text-xs font-bold tracking-wide">Starting camera…</p>
+                <p className="text-xs font-bold tracking-wide">Starting camera lens…</p>
               </div>
             )}
 
             {error && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-950 p-6 text-center text-white">
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-slate-950 p-6 text-center text-white">
                 <AlertCircle size={36} className="text-rose-500" />
                 <p className="text-xs text-slate-300">{error}</p>
               </div>
             )}
 
             {isSubmitting && !error && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-indigo-950/70">
+              <div className="absolute inset-0 z-30 flex items-center justify-center bg-indigo-950/70">
                 <div className="flex items-center gap-2.5 rounded-2xl bg-white px-5 py-3 text-xs font-bold text-slate-900 shadow-xl">
                   <Loader2 size={16} className="animate-spin text-indigo-600" />
                   Adding item to bill…
@@ -2794,7 +3274,7 @@ const BarcodeScanner = ({ onScan, onClose }) => {
           <div className="flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3">
             <CheckCircle2 size={18} className="shrink-0 text-indigo-600" />
             <p className="text-xs font-semibold text-indigo-900">
-              Scan each product in sequence. The camera stays on until you close the scanner or finish scanning.
+              Align barcodes inside the targeting box. Continuous scanning is active.
             </p>
           </div>
 
@@ -2852,4 +3332,4 @@ const BarcodeScanner = ({ onScan, onClose }) => {
   );
 };
 
-export default BarcodeScanner
+export default BarcodeScanner;

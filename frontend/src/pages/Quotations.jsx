@@ -294,8 +294,6 @@ export default function Quotations() {
     const handleDelete = async (quotation) => {
         const id = getId(quotation);
         if (!id) return toast.error('Quotation ID is missing');
-        const confirmed = window.confirm(`Delete quotation ${getQuotationNumber(quotation)}? This action cannot be undone.`);
-        if (!confirmed) return;
 
         setDeletingId(id);
         try {
@@ -401,9 +399,10 @@ export default function Quotations() {
                                         <tr><td colSpan="7" className="px-5 py-16 text-center"><FaFileAlt className="mx-auto mb-3 text-3xl text-slate-300" /><p className="font-semibold text-slate-700">No quotations found</p><p className="mt-1 text-sm text-slate-500">{committedQuery ? 'Try another search term.' : 'Quotations you create from POS will appear here.'}</p></td></tr>
                                     ) : quotations.map((quotation) => {
                                         const id = getId(quotation);
+                                        const isDeleting = deletingId === id;
                                         return (
                                             <React.Fragment key={id || getQuotationNumber(quotation)}>
-                                                <tr className="transition hover:bg-slate-50/70">
+                                                <tr className={`transition hover:bg-slate-50/70 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
                                                     <td className="px-5 py-4">
                                                         <button type="button" onClick={() => setExpandedId(expandedId === id ? null : id)} className="flex items-center gap-2 text-left font-bold text-indigo-700 hover:text-indigo-900">
                                                             {expandedId === id ? <FaChevronUp className="text-xs" /> : <FaChevronDown className="text-xs" />}
@@ -463,9 +462,19 @@ export default function Quotations() {
                                 <div className="p-10 text-center"><FaFileAlt className="mx-auto mb-3 text-3xl text-slate-300" /><p className="font-semibold text-slate-700">No quotations found</p><p className="mt-1 text-sm text-slate-500">{committedQuery ? 'Try another search term.' : 'Quotations created from POS appear here.'}</p></div>
                             ) : quotations.map((quotation) => {
                                 const id = getId(quotation);
+                                const isDeleting = deletingId === id;
+
                                 return (
-                                    <div key={id || getQuotationNumber(quotation)} className="p-4">
-                                        <button type="button" onClick={() => setExpandedId(expandedId === id ? null : id)} className="flex w-full items-start justify-between gap-3 text-left">
+                                    <div
+                                        key={id || getQuotationNumber(quotation)}
+                                        className={`p-4 transition-opacity ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => setExpandedId(expandedId === id ? null : id)}
+                                            disabled={isDeleting}
+                                            className="flex w-full items-start justify-between gap-3 text-left"
+                                        >
                                             <div className="min-w-0">
                                                 <p className="truncate font-bold text-indigo-700">{getQuotationNumber(quotation)}</p>
                                                 <p className="mt-1 truncate font-semibold text-slate-800">{getCustomerName(quotation)}</p>
@@ -477,10 +486,12 @@ export default function Quotations() {
                                             </div>
                                         </button>
                                         <div className="mt-3 flex flex-wrap gap-2">
-                                            <button onClick={() => openEdit(quotation)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700"><FaEdit /> Edit</button>
-                                            <button onClick={() => handlePrint(quotation)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700"><FaPrint /> Print</button>
-                                            <button onClick={() => handleDownload(quotation)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700"><FaDownload /> PDF</button>
-                                            <button disabled={deletingId === id} onClick={() => handleDelete(quotation)} className="inline-flex items-center gap-2 rounded-lg border border-rose-100 px-3 py-2 text-xs font-semibold text-rose-600 disabled:opacity-50"><FaTrash /> Delete</button>
+                                            <button disabled={isDeleting} onClick={() => openEdit(quotation)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50"><FaEdit /> Edit</button>
+                                            <button disabled={isDeleting} onClick={() => handlePrint(quotation)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50"><FaPrint /> Print</button>
+                                            <button disabled={isDeleting} onClick={() => handleDownload(quotation)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50"><FaDownload /> PDF</button>
+                                            <button disabled={isDeleting} onClick={() => handleDelete(quotation)} className="inline-flex items-center gap-2 rounded-lg border border-rose-100 px-3 py-2 text-xs font-semibold text-rose-600 disabled:opacity-50">
+                                                {isDeleting ? <FaSpinner className="animate-spin" /> : <FaTrash />}Delete
+                                            </button>
                                         </div>
                                         {expandedId === id && <div className="mt-4 border-t border-slate-100 pt-4"><QuotationDetails quotation={quotation} statusClass={statusClass} onStatusChange={(status) => handleStatusChange(quotation, status)} onEdit={() => openEdit(quotation)} onPrint={() => handlePrint(quotation)} onDownload={() => handleDownload(quotation)} statusUpdating={statusUpdatingId === id} /></div>}
                                     </div>
@@ -656,8 +667,8 @@ function QuotationDetails({ quotation, statusClass, onStatusChange, onEdit, onPr
                                             {money(item.taxAmount)}
                                         </td>
                                         <td className="px-3 py-3.5 text-right font-semibold text-rose-600">
-                                             {item.discount?.amount > 0 ? `- ${formatCurrency(item.discount.amount)}` : '—'}
-                                                        {item.discount?.type === "percentage" && item.discount?.value > 0 && ` (${item.discount.value}%)`}
+                                            {item.discount?.amount > 0 ? `- ${formatCurrency(item.discount.amount)}` : '—'}
+                                            {item.discount?.type === "percentage" && item.discount?.value > 0 && ` (${item.discount.value}%)`}
                                         </td>
                                         <td className="px-4 py-3.5 text-right font-extrabold text-slate-900">
                                             {money(item.itemTotal)}

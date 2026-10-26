@@ -181,6 +181,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UpiQuickPay from './UpiQuickPay';
 import { useAuthStore } from '../store/store';
+import { healthCheck } from '../services/api';
 
 const ArrowIcon = ({ className = 'h-5 w-5' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
@@ -267,6 +268,7 @@ export const HomePage = () => {
 
   useEffect(() => {
     document.title = 'Dukanbill | Retail POS & Billing';
+    healthCheck()
   }, []);
 
   useEffect(() => {
