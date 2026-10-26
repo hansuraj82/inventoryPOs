@@ -4979,7 +4979,7 @@ export default function POS() {
                             <span>{formatCurrency(effectiveTotal)}</span>
                           </div>
                           {/* --- Dynamic UPI QR Code Component --- */}
-                          {currentUser?.barcodeAccess && <div className="my-3">
+                          {currentUser?.barcodeAccess && paymentMethod=='upi' && <div className="my-3">
                             <UpiQr money={effectiveTotal} />
                           </div>}
                         </>
