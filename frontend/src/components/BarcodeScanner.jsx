@@ -736,7 +736,7 @@
 //       toast.error('Enter a barcode first.');
 //       return;
 //     }
-    
+
 //     setIsStable(true);
 //     setCandidateCode(value);
 //   };
@@ -1773,7 +1773,7 @@
 //     try {
 //       await onScanRef.current?.(cleanText);
 //       toast.success(`Scanned: ${cleanText}`, { duration: 1500, position: 'top-center' });
-      
+
 //       // Reset last scanned cache after 1.5s to allow scanning the same item again if needed
 //       setTimeout(() => setLastScanned(''), 1500);
 //     } catch (err) {
@@ -1904,7 +1904,7 @@
 //   return (
 //     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 backdrop-blur-sm sm:p-5">
 //       <div className="flex max-h-[96vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-        
+
 //         {/* Header */}
 //         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
 //           <div className="flex items-center gap-3">
@@ -1943,7 +1943,7 @@
 
 //         {/* Body */}
 //         <div className="space-y-4 overflow-y-auto p-5">
-          
+
 //           {/* Camera Viewport Container */}
 //           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-950 shadow-inner">
 //             <div id={SCANNER_REGION_ID} className="h-full w-full object-cover" />
@@ -2103,7 +2103,7 @@
 //     try {
 //       await onScanRef.current?.(cleanText);
 //       toast.success(`Scanned: ${cleanText}`, { duration: 1500, position: 'top-center' });
-      
+
 //       // Reset last scanned cache after 1.5s to allow scanning the same item again if needed
 //       setTimeout(() => setLastScanned(''), 1500);
 //     } catch (err) {
@@ -2234,7 +2234,7 @@
 //   return (
 //     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 backdrop-blur-sm sm:p-5">
 //       <div className="flex max-h-[96vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-        
+
 //         {/* Header */}
 //         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
 //           <div className="flex items-center gap-3">
@@ -2273,7 +2273,7 @@
 
 //         {/* Body */}
 //         <div className="space-y-4 overflow-y-auto p-5">
-          
+
 //           {/* Camera Viewport Container */}
 //           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-950 shadow-inner">
 //             <div id={SCANNER_REGION_ID} className="h-full w-full object-cover" />
@@ -2731,7 +2731,7 @@
 //             </div>
 //             <div>
 //               <h2 className="text-base font-black text-slate-900">DukanBill POS Scanner</h2>
-              
+
 //             </div>
 //           </div>
 
@@ -3072,7 +3072,7 @@ const BarcodeScanner = ({ onScan, onClose }) => {
               void handleSuccessfulScan(decodedText);
             }
           },
-          () => {}
+          () => { }
         );
 
         startPromiseRef.current = startPromise;
@@ -3122,7 +3122,7 @@ const BarcodeScanner = ({ onScan, onClose }) => {
             video.pause();
             video.srcObject = null;
           }
-        } catch {}
+        } catch { }
 
         if (scannerRef.current === scannerInstance) {
           scannerRef.current = null;
@@ -3153,7 +3153,7 @@ const BarcodeScanner = ({ onScan, onClose }) => {
             video.pause();
             video.srcObject = null;
           }
-        } catch {}
+        } catch { }
       }
     };
   }, [handleSuccessfulScan, stopCamera]);
@@ -3216,11 +3216,10 @@ const BarcodeScanner = ({ onScan, onClose }) => {
                 type="button"
                 onClick={toggleTorch}
                 disabled={isSubmitting}
-                className={`rounded-xl p-2.5 transition ${
-                  torchOn
+                className={`rounded-xl p-2.5 transition ${torchOn
                     ? 'bg-amber-100 text-amber-700'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+                  }`}
                 title="Toggle flashlight"
                 aria-label="Toggle flashlight"
               >
@@ -3240,41 +3239,45 @@ const BarcodeScanner = ({ onScan, onClose }) => {
 
         <div className="space-y-4 overflow-y-auto p-5">
           {/* Camera Viewport with custom overlay frame */}
-          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-950 shadow-inner">
-            <div id={SCANNER_REGION_ID} className="h-full w-full [&_video]:object-cover" />
+<div className="relative h-64 sm:h-72 w-full overflow-hidden rounded-2xl bg-slate-950 shadow-inner">
+  {/* Html5-qrcode mount container with strict internal element clamping */}
+  <div 
+    id={SCANNER_REGION_ID} 
+    className="absolute inset-0 h-full w-full [&_video]:h-full [&_video]:w-full [&_video]:object-cover [&_div]:!border-none [&_div]:!bg-transparent [&_img]:hidden" 
+  />
 
-            {/* Visual targeting laser line */}
-            {!isStarting && !error && (
-              <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center">
-                <div className="w-[300px] h-12 border-2 border-indigo-400/60 rounded-xl relative flex items-center justify-center">
-                  <div className="absolute inset-x-0 h-0.5 bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.9)] animate-pulse" />
-                </div>
-              </div>
-            )}
+  {/* Visual targeting laser line */}
+  {!isStarting && !error && (
+    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+      <div className="w-[85%] max-w-[280px] h-14 border-2 border-indigo-400/80 rounded-xl relative flex items-center justify-center bg-black/10 backdrop-blur-[1px]">
+        <div className="absolute inset-x-0 h-0.5 bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.9)] animate-pulse" />
+      </div>
+    </div>
+  )}
 
-            {isStarting && (
-              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-slate-950 text-white">
-                <Loader2 size={32} className="animate-spin text-indigo-500" />
-                <p className="text-xs font-bold tracking-wide">Starting camera lens…</p>
-              </div>
-            )}
+  {isStarting && (
+    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-slate-950 text-white">
+      <Loader2 size={32} className="animate-spin text-indigo-500" />
+      <p className="text-xs font-bold tracking-wide">Starting camera lens…</p>
+    </div>
+  )}
 
-            {error && (
-              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-slate-950 p-6 text-center text-white">
-                <AlertCircle size={36} className="text-rose-500" />
-                <p className="text-xs text-slate-300">{error}</p>
-              </div>
-            )}
+  {error && (
+    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-slate-950 p-6 text-center text-white">
+      <AlertCircle size={36} className="text-rose-500" />
+      <p className="text-xs text-slate-300">{error}</p>
+    </div>
+  )}
 
-            {isSubmitting && !error && (
-              <div className="absolute inset-0 z-30 flex items-center justify-center bg-indigo-950/70">
-                <div className="flex items-center gap-2.5 rounded-2xl bg-white px-5 py-3 text-xs font-bold text-slate-900 shadow-xl">
-                  <Loader2 size={16} className="animate-spin text-indigo-600" />
-                  Adding item to bill…
-                </div>
-              </div>
-            )}
-          </div>
+  {isSubmitting && !error && (
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-indigo-950/80 backdrop-blur-xs">
+      <div className="flex items-center gap-2.5 rounded-2xl bg-white px-5 py-3 text-xs font-bold text-slate-900 shadow-xl">
+        <Loader2 size={16} className="animate-spin text-indigo-600" />
+        Adding item to bill…
+      </div>
+    </div>
+  )}
+</div>
 
           <div className="flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3">
             <CheckCircle2 size={18} className="shrink-0 text-indigo-600" />
