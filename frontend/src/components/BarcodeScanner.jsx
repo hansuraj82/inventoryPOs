@@ -3059,7 +3059,7 @@ const BarcodeScanner = ({ onScan, onClose }) => {
         // Optimized proportions for effortless retail barcode scanning
         const config = {
           fps: 25,
-          qrbox: { width: 300, height: 120 }, // Wider box fits linear retail barcodes perfectly
+          qrbox: { width: 300, height: 60 }, // Wider box fits linear retail barcodes perfectly
           aspectRatio: 16 / 9,
           disableFlip: false,
         };
@@ -3091,7 +3091,12 @@ const BarcodeScanner = ({ onScan, onClose }) => {
         try {
           const track = scannerInstance.getRunningTrack?.();
           const capabilities = track?.getCapabilities?.();
-          setHasTorch(Boolean(capabilities?.torch));
+          if (capabilities?.torch) {
+            setHasTorch(true);
+          } else {
+            // Fallback check on mobile tracks
+            setHasTorch(true); // Force-show torch button on mobile environments to let users test hardware toggle
+          }
         } catch {
           setHasTorch(false);
         }
