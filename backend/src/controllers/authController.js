@@ -151,6 +151,66 @@ exports.getCurrentUser = async (req, res, next) => {
 // @route   PUT /api/auth/profile
 // @desc    Update user profile
 // @access  Private
+// exports.updateProfile = async (req, res, next) => {
+//   try {
+//     const { name, phone, shopName, businessDetails } = req.body;
+//     const userId = req.user.id;
+
+//     // Find user
+//     let user = await User.findById(userId);
+
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'User not found'
+//       });
+//     }
+
+//     // Update allowed fields
+//     if (name) user.name = name;
+//     if (phone) user.phone = phone;
+//     if (shopName) user.shopName = shopName;
+
+//     // Update business details
+//     if (businessDetails) {
+//       user.businessDetails = {
+//         gstin: businessDetails.gstin || user.businessDetails?.gstin || '',
+//         pan: businessDetails.pan || user.businessDetails?.pan || '',
+//         businessAddress: businessDetails.businessAddress || user.businessDetails?.businessAddress || '',
+//         businessEmail: businessDetails.businessEmail || user.businessDetails?.businessEmail || '',
+//         businessPhone: businessDetails.businessPhone || user.businessDetails?.businessPhone || '',
+//         bankName: businessDetails.bankName || user.businessDetails?.bankName || '',
+//         accountNumber: businessDetails.accountNumber || user.businessDetails?.accountNumber || '',
+//         ifscCode: businessDetails.ifscCode || user.businessDetails?.ifscCode || '',
+//         upiId: businessDetails.upiId || user.businessDetails?.upiId || ''
+//       };
+//     }
+
+//     // Save user (will not trigger password hashing since password is not modified)
+//     await user.save();
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Profile updated successfully',
+//       user: {
+//         id: user._id,
+//         name: user.name,
+//         email: user.email,
+//         shopName: user.shopName,
+//         phone: user.phone,
+//         role: user.role,
+//         businessDetails: user.businessDetails || {}
+//       }
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
+
+// @route   PUT /api/auth/profile
+// @desc    Update user profile
+// @access  Private
 exports.updateProfile = async (req, res, next) => {
   try {
     const { name, phone, shopName, businessDetails } = req.body;
@@ -166,27 +226,27 @@ exports.updateProfile = async (req, res, next) => {
       });
     }
 
-    // Update allowed fields
-    if (name) user.name = name;
-    if (phone) user.phone = phone;
-    if (shopName) user.shopName = shopName;
+    // Update allowed top-level fields
+    if (name !== undefined) user.name = name;
+    if (phone !== undefined) user.phone = phone;
+    if (shopName !== undefined) user.shopName = shopName;
 
-    // Update business details
-    if (businessDetails) {
+    // Update business details safely, allowing fields to be cleared (set to '' or null)
+    if (businessDetails && typeof businessDetails === 'object') {
       user.businessDetails = {
-        gstin: businessDetails.gstin || user.businessDetails?.gstin,
-        pan: businessDetails.pan || user.businessDetails?.pan,
-        businessAddress: businessDetails.businessAddress || user.businessDetails?.businessAddress,
-        businessEmail: businessDetails.businessEmail || user.businessDetails?.businessEmail,
-        businessPhone: businessDetails.businessPhone || user.businessDetails?.businessPhone,
-        bankName: businessDetails.bankName || user.businessDetails?.bankName,
-        accountNumber: businessDetails.accountNumber || user.businessDetails?.accountNumber,
-        ifscCode: businessDetails.ifscCode || user.businessDetails?.ifscCode,
-        upiId: businessDetails.upiId || user.businessDetails?.upiId
+        gstin: businessDetails.gstin !== undefined ? businessDetails.gstin : (user.businessDetails?.gstin || ''),
+        pan: businessDetails.pan !== undefined ? businessDetails.pan : (user.businessDetails?.pan || ''),
+        businessAddress: businessDetails.businessAddress !== undefined ? businessDetails.businessAddress : (user.businessDetails?.businessAddress || ''),
+        businessEmail: businessDetails.businessEmail !== undefined ? businessDetails.businessEmail : (user.businessDetails?.businessEmail || ''),
+        businessPhone: businessDetails.businessPhone !== undefined ? businessDetails.businessPhone : (user.businessDetails?.businessPhone || ''),
+        bankName: businessDetails.bankName !== undefined ? businessDetails.bankName : (user.businessDetails?.bankName || ''),
+        accountNumber: businessDetails.accountNumber !== undefined ? businessDetails.accountNumber : (user.businessDetails?.accountNumber || ''),
+        ifscCode: businessDetails.ifscCode !== undefined ? businessDetails.ifscCode : (user.businessDetails?.ifscCode || ''),
+        upiId: businessDetails.upiId !== undefined ? businessDetails.upiId : (user.businessDetails?.upiId || '')
       };
     }
 
-    // Save user (will not trigger password hashing since password is not modified)
+    // Save user
     await user.save();
 
     res.status(200).json({
@@ -206,6 +266,7 @@ exports.updateProfile = async (req, res, next) => {
     next(error);
   }
 };
+
 
 // @route   POST /api/auth/change-password
 // @desc    Change user password

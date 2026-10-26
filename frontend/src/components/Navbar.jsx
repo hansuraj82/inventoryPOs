@@ -116,16 +116,17 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/store';
 // Icons make the UI feel more professional and aid scannability
-import { 
-  LayoutDashboard, 
-  Package, 
-  ShoppingCart, 
-  ReceiptIndianRupee, 
-  LogOut, 
-  Menu, 
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  ReceiptIndianRupee,
+  LogOut,
+  Menu,
   X,
   Store,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  NotepadText
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -148,13 +149,14 @@ export default function Navbar() {
     { name: 'POS', path: '/pos', icon: <ShoppingCart size={18} /> },
     { name: 'Sales', path: '/sales', icon: <ReceiptIndianRupee size={18} /> },
     { name: 'Settings', path: '/settings', icon: <SettingsIcon size={18} /> },
+    ... (user?.barcodeAccess ? [{ name: 'Quotations', path: '/quotation', icon: <NotepadText size={18} /> }] : []),
   ];
 
   return (
     <nav className="bg-slate-950 text-slate-200 shadow-xl border-b border-slate-800 sticky top-0 z-50 backdrop-blur-md bg-opacity-95">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          
+
           {/* Brand Logo */}
           <div className="flex items-center gap-2">
             <Link to="/" className="flex items-center gap-2 group">
@@ -174,11 +176,10 @@ export default function Navbar() {
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                    isActive(link.path)
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${isActive(link.path)
                       ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/40'
                       : 'hover:text-white hover:bg-slate-800 text-slate-400'
-                  }`}
+                    }`}
                 >
                   {link.icon}
                   {link.name}
@@ -196,7 +197,7 @@ export default function Navbar() {
                 </span>
                 <span className="text-[10px] text-slate-500 mt-1 font-medium">Merchant Account</span>
               </div>
-              
+
               <Link
                 to="/settings"
                 className="group flex items-center justify-center p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all"
@@ -204,7 +205,7 @@ export default function Navbar() {
               >
                 <SettingsIcon size={18} className="text-slate-400 group-hover:text-indigo-500 transition-colors" />
               </Link>
-              
+
               <button
                 onClick={handleLogout}
                 className="group flex items-center justify-center p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-red-500/50 hover:bg-red-500/10 transition-all"
@@ -235,17 +236,16 @@ export default function Navbar() {
               <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Logged in as</p>
               <p className="text-white font-semibold">{user.shopName}</p>
             </div>
-            
+
             {navLinks.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
                 onClick={() => setIsMenuOpen(false)}
-                className={`flex items-center gap-4 px-4 py-3 rounded-xl text-base font-semibold transition-colors ${
-                  isActive(link.path)
+                className={`flex items-center gap-4 px-4 py-3 rounded-xl text-base font-semibold transition-colors ${isActive(link.path)
                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                     : 'text-slate-400 hover:bg-slate-900 hover:text-white'
-                }`}
+                  }`}
               >
                 {link.icon}
                 {link.name}

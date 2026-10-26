@@ -426,11 +426,10 @@ const Products = React.lazy(() => import('./pages/Products'));
 const POS = React.lazy(() => import('./pages/POS'));
 const Sales = React.lazy(() => import('./pages/Sales'));
 const Settings = React.lazy(() => import('./pages/Settings'));
-const BarcodePrintSheet = React.lazy(
-  () => import('./pages/BarcodePrintSheet')
-);
+const BarcodePrintSheet = React.lazy(() => import('./pages/BarcodePrintSheet'));
 const UpiQuickPay = React.lazy(() => import('./pages/UpiQuickPay'));
 const Home = React.lazy(() => import('./pages/HomePage'));
+const Quotation = React.lazy(() => import('./pages/Quotations'))
 
 // --- AUTHENTICATED USERS CANNOT ACCESS LOGIN / REGISTER ---
 function PublicOnlyRoute({ children }) {
@@ -530,6 +529,15 @@ function App() {
               element={
                 <PrivateRoute>
                   <Sales />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/quotation"
+              element={
+                <PrivateRoute>
+                  <Quotation />
                 </PrivateRoute>
               }
             />

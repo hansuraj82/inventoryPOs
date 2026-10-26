@@ -60,10 +60,47 @@ export const saleAPI = {
   
   // ADDED: Update existing sale record
   update: (id, data) => api.put(`/sales/${id}`, data),
+  delete: (id) => api.delete(`/sales/${id}`),
   
   getTodayStats: () => api.get('/sales/stats/today'),
   getDashboardStats: () => api.get('/sales/stats/dashboard'),
   getAnalytics: (startDate, endDate) => api.get('/sales/analytics/graph', { params: { startDate, endDate } })
+};
+
+
+
+export const quotationAPI = {
+  // Get all quotations with pagination
+  getAll: (page = 1, limit = 15) =>
+    api.get('/quotations', {
+      params: { page, limit },
+    }),
+
+  // Search quotations by quotation number, customer name, or mobile
+  search: (query, page = 1, limit = 15) =>
+    api.get('/quotations/search', {
+      params: { q: query, page, limit },
+    }),
+
+  // Get a single quotation by ID
+  getById: (id) =>
+    api.get(`/quotations/${id}`),
+
+  // Create a new quotation
+  create: (data) =>
+    api.post('/quotations', data),
+
+  // Update an existing quotation
+  update: (id, data) =>
+    api.put(`/quotations/${id}`, data),
+
+  // Update quotation status: draft, sent, accepted, rejected, expired
+  updateStatus: (id, status) =>
+    api.patch(`/quotations/${id}/status`, { status }),
+
+  // Delete a quotation
+  delete: (id) =>
+    api.delete(`/quotations/${id}`),
 };
 
 

@@ -2129,7 +2129,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     detailY += detailLineHeight;
   }
 
-  currentY += 25;
+  currentY += 20;
 
   // =================== INVOICE & CUSTOMER INFO ===================
   doc.setFillColor(...COLORS.lightBg);
@@ -2168,7 +2168,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     doc.text(`Address: ${saleData.customer.address}`, leftBoxX, currentY + 13);
   }
 
-  currentY += 18;
+  currentY += 16;
 
 
   // =================== ITEMS TABLE (AUTO-TABLE WITH UNCLUTTERED TOP MARGIN ON PAGE 2+) ===================
@@ -2378,8 +2378,11 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     startY: currentY,
     head: [['#', 'ITEM DESCRIPTION', 'HSN/SAC', 'QTY', 'RATE / ITEM', 'TAXABLE VALUE', 'GST%', 'AMOUNT']],
     body: tableRows,
+    showHead: 'everyPage',
+    pageBreak: 'auto',
+    rowPageBreak: 'avoid',
     theme: 'grid',
-    margin: { top: 15, left: MARGIN_LEFT, right: MARGIN_RIGHT, bottom: footerHeight - 10 },
+    margin: { top: 5, left: MARGIN_LEFT, right: MARGIN_RIGHT, bottom: footerHeight - 21 },
     headStyles: {
       fillColor: COLORS.accent,
       textColor: [255, 255, 255],
@@ -2392,8 +2395,11 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
       fontSize: 8,
       textColor: COLORS.primary,
       cellPadding: 3,
-      valign: 'middle'
+      valign: 'middle',
+      lineColor: COLORS.border,
+      lineWidth: 0.15,
     },
+    alternateRowStyles: { fillColor: [252, 252, 255] },
     columnStyles: {
       0: { cellWidth: 10, halign: 'center' },
       1: { cellWidth: descriptionColWidth },
@@ -2443,7 +2449,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     }
   });
 
-  currentY = doc.lastAutoTable.finalY + 8;
+  currentY = doc.lastAutoTable.finalY + 2;
 
   // Check if summary section needs a clean page break
   if (currentY + 50 > pageHeight - footerHeight - 10) {
@@ -2454,25 +2460,46 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   // =================== TAX SUMMARY & AMOUNT SECTION ===================
   const { totalTaxable, totalTax, totalItemDiscount, taxByRate } = calculateGSTBreakdown(saleData.items);
 
-  // Left section - Tax breakdown table
+  // ===== 1. PRE-CALCULATE DYNAMIC HEIGHTS =====
+  // Group items by HSN first so we know exact row counts
+  const itemsByHsn = {};
+  (saleData.items || []).forEach(item => {
+    const hsn = (item.hsnCode && item.hsnCode.trim()) ? item.hsnCode : ' - ';
+    if (!itemsByHsn[hsn]) itemsByHsn[hsn] = [];
+    itemsByHsn[hsn].push(item);
+  });
+
+  const hsnRowCount = Object.keys(itemsByHsn).length;
+
+  // Calculate exact required heights for Left and Right columns
+  const leftTableHeight = 10 + (hsnRowCount * 5) + 4; // Header + rows + padding
+
+  // Calculate right summary dynamic row count based on active discounts
+  let rightSummaryRows = 4; // Base Amount, Subtotal, Total Tax, Grand Total
+  if ((totalItemDiscount || 0) > 0) rightSummaryRows++;
+  if ((saleData.saleDiscount?.amount || 0) > 0) rightSummaryRows++;
+  if ((saleData.totalDiscountAmount || 0) > 0) rightSummaryRows++;
+
+  const rightSummaryHeight = 10 + (rightSummaryRows * 5) + 6; // Header + rows + padding
+
+  // Use the taller of the two boxes so background container never cuts off content
+  const taxBoxHeight = Math.max(leftTableHeight, rightSummaryHeight, 20);
+
+  // Left & Right coordinates
   const taxSummaryLeftX = MARGIN_LEFT;
   const taxSummaryLeftWidth = CONTENT_WIDTH * 0.5 - 1;
-
-  // Right section - Amount summary
   const taxSummaryRightX = MARGIN_LEFT + CONTENT_WIDTH * 0.5 + 1;
   const taxSummaryRightWidth = CONTENT_WIDTH * 0.5 - 2;
 
-  // ===== LEFT: TAX BREAKDOWN TABLE =====
-  const taxRatesCount = Object.keys(saleData.items).length;
-  const taxBoxHeight = 7 + (taxRatesCount > 0 ? Math.max(taxRatesCount * 5, 8) : 8);
-
+  // Draw background containers for both columns cleanly
   doc.setFillColor(...COLORS.lightBg);
   doc.roundedRect(taxSummaryLeftX, currentY, taxSummaryLeftWidth, taxBoxHeight, 1, 1, 'F');
+  doc.roundedRect(taxSummaryRightX, currentY, taxSummaryRightWidth, taxBoxHeight, 1, 1, 'F');
 
-  // Tax table header
+
+  // ===== 2. LEFT: TAX BREAKDOWN TABLE =====
   doc.setFillColor(79, 70, 229);
   doc.rect(taxSummaryLeftX + 1, currentY + 1, taxSummaryLeftWidth - 2, 5, 'F');
-
 
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bolditalic');
@@ -2486,16 +2513,6 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.setTextColor(...COLORS.primary);
   doc.setFont('helvetica', 'italic');
 
-  // Group items by HSN
-  const itemsByHsn = {};
-  (saleData.items || []).forEach(item => {
-    const hsn = (item.hsnCode && item.hsnCode.trim()) ? item.hsnCode : ' - ';
-    if (!itemsByHsn[hsn]) {
-      itemsByHsn[hsn] = [];
-    }
-    itemsByHsn[hsn].push(item);
-  });
-
   // Display HSN wise breakdown
   Object.keys(itemsByHsn).forEach(hsn => {
     const items = itemsByHsn[hsn];
@@ -2505,7 +2522,6 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
 
     items.forEach(item => {
       const baseAmount = Number(item.price) * Number(item.quantity);
-
       let itemDiscount = 0;
       if (item.discount && item.discount.value > 0) {
         if (item.discount.type === 'percentage') {
@@ -2533,14 +2549,15 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     tableY += 5;
   });
 
-  // ===== RIGHT: AMOUNT SUMMARY =====
-  doc.setFillColor(...COLORS.accent);
-  doc.roundedRect(taxSummaryRightX, currentY, taxSummaryRightWidth, 6, 1, 1, 'F');
 
-  doc.setFontSize(9);
+  // ===== 3. RIGHT: AMOUNT SUMMARY =====
+  doc.setFillColor(...COLORS.accent);
+  doc.rect(taxSummaryRightX + 1, currentY + 1, taxSummaryRightWidth - 2, 5, 'F');
+
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'bolditalic');
   doc.setTextColor(255, 255, 255);
-  doc.text('SUMMARY', taxSummaryRightX + 3, currentY + 4);
+  doc.text('AMOUNT SUMMARY', taxSummaryRightX + 3, currentY + 4.5);
 
   let summaryY = currentY + 10;
   const taxSumLabelX = taxSummaryRightX + 3;
@@ -2555,7 +2572,6 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.setTextColor(...COLORS.primary);
   doc.setFont('helvetica', 'bolditalic');
   doc.text(`Rs ${baseSubtotal.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
-
   summaryY += 5;
 
   // Item Discounts (if any)
@@ -2576,7 +2592,6 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.setTextColor(...COLORS.primary);
   doc.setFont('helvetica', 'bolditalic');
   doc.text(`Rs ${totalTaxable.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
-
   summaryY += 5;
 
   // Total Tax
@@ -2586,10 +2601,9 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
   doc.setTextColor(79, 70, 229);
   doc.setFont('helvetica', 'bolditalic');
   doc.text(`Rs ${totalTax.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
-
   summaryY += 5;
 
-  // Total Discount (if any)
+  // Total Discount / Sale Discount
   const totalDiscount = (saleData.totalDiscountAmount || 0);
   const saleDiscount = (saleData.saleDiscount?.amount || 0);
   if (saleDiscount > 0) {
@@ -2601,7 +2615,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     summaryY += 5;
   }
 
-  if (totalDiscount > 0) {
+  if (totalDiscount > 0 && saleDiscount === 0) {
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(239, 68, 68);
     doc.text('Total Discount:', taxSumLabelX, summaryY);
@@ -2610,24 +2624,200 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     summaryY += 5;
   }
 
-  summaryY += 2;
+  summaryY += 1;
 
-  // Divider
+  // Divider line inside right box
   doc.setDrawColor(...COLORS.accent);
-  doc.setLineWidth(0.5);
+  doc.setLineWidth(0.4);
   doc.line(taxSumLabelX, summaryY - 2, taxSumValueX, summaryY - 2);
-
   summaryY += 3;
 
-  // Grand Total (with all discounts)
+  // Grand Total
   doc.setFont('helvetica', 'bolditalic');
-  doc.setFontSize(10);
+  doc.setFontSize(9.5);
   doc.setTextColor(...COLORS.accent);
   doc.text('GRAND TOTAL:', taxSumLabelX, summaryY);
   const finalGrandTotal = Math.max(0, saleData.totalAmount);
   doc.text(`Rs ${finalGrandTotal.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
 
-  currentY += Math.max(taxBoxHeight, 20) + 5;
+  // Safely advance currentY using the calculated max height of both columns
+  currentY += taxBoxHeight + 2;
+
+
+  // // Left section - Tax breakdown table
+  // const taxSummaryLeftX = MARGIN_LEFT;
+  // const taxSummaryLeftWidth = CONTENT_WIDTH * 0.5 - 1;
+
+  // // Right section - Amount summary
+  // const taxSummaryRightX = MARGIN_LEFT + CONTENT_WIDTH * 0.5 + 1;
+  // const taxSummaryRightWidth = CONTENT_WIDTH * 0.5 - 2;
+
+  // // ===== LEFT: TAX BREAKDOWN TABLE =====
+  // const taxRatesCount = Object.keys(saleData.items).length;
+  // const taxBoxHeight = 7 + (taxRatesCount > 0 ? Math.max(taxRatesCount * 5, 8) : 8);
+
+  // doc.setFillColor(...COLORS.lightBg);
+  // doc.roundedRect(taxSummaryLeftX, currentY, taxSummaryLeftWidth, taxBoxHeight, 1, 1, 'F');
+
+  // // Tax table header
+  // doc.setFillColor(79, 70, 229);
+  // doc.rect(taxSummaryLeftX + 1, currentY + 1, taxSummaryLeftWidth - 2, 5, 'F');
+
+
+  // doc.setFontSize(7);
+  // doc.setFont('helvetica', 'bolditalic');
+  // doc.setTextColor(255, 255, 255);
+  // doc.text('HSN/SAC', taxSummaryLeftX + 3, currentY + 4.5);
+  // doc.text('TAXABLE VAL', taxSummaryLeftX + 45, currentY + 4.5, { align: 'right' });
+  // doc.text('GST%', taxSummaryLeftX + 60, currentY + 4.5, { align: 'center' });
+  // doc.text('TAX AMT', taxSummaryLeftX + taxSummaryLeftWidth - 8, currentY + 4.5, { align: 'right' });
+
+  // let tableY = currentY + 10;
+  // doc.setTextColor(...COLORS.primary);
+  // doc.setFont('helvetica', 'italic');
+
+  // // Group items by HSN
+  // const itemsByHsn = {};
+  // (saleData.items || []).forEach(item => {
+  //   const hsn = (item.hsnCode && item.hsnCode.trim()) ? item.hsnCode : ' - ';
+  //   if (!itemsByHsn[hsn]) {
+  //     itemsByHsn[hsn] = [];
+  //   }
+  //   itemsByHsn[hsn].push(item);
+  // });
+
+  // // Display HSN wise breakdown
+  // Object.keys(itemsByHsn).forEach(hsn => {
+  //   const items = itemsByHsn[hsn];
+  //   let hsnTaxable = 0;
+  //   let hsnTax = 0;
+  //   const rates = new Set();
+
+  //   items.forEach(item => {
+  //     const baseAmount = Number(item.price) * Number(item.quantity);
+
+  //     let itemDiscount = 0;
+  //     if (item.discount && item.discount.value > 0) {
+  //       if (item.discount.type === 'percentage') {
+  //         itemDiscount = (baseAmount * item.discount.value) / 100;
+  //       } else {
+  //         itemDiscount = Number(item.discount.value) || 0;
+  //       }
+  //     }
+
+  //     const taxableValue = baseAmount - itemDiscount;
+  //     const gstRate = Number(item.gstRate) || 0;
+  //     const taxAmount = (taxableValue * gstRate) / 100;
+  //     hsnTaxable += taxableValue;
+  //     hsnTax += taxAmount;
+  //     rates.add(gstRate);
+  //   });
+
+  //   const rateStr = Array.from(rates).join(',');
+  //   doc.setFontSize(7);
+  //   doc.text(hsn.substring(0, 8), taxSummaryLeftX + 3, tableY);
+  //   doc.text(`${hsnTaxable.toFixed(2)}`, taxSummaryLeftX + 42, tableY, { align: 'right' });
+  //   doc.text(rateStr, taxSummaryLeftX + 60, tableY, { align: 'center' });
+  //   doc.text(`${hsnTax.toFixed(2)}`, taxSummaryLeftX + taxSummaryLeftWidth - 10, tableY, { align: 'right' });
+
+  //   tableY += 5;
+  // });
+
+  // // ===== RIGHT: AMOUNT SUMMARY =====
+  // doc.setFillColor(...COLORS.accent);
+  // doc.roundedRect(taxSummaryRightX, currentY, taxSummaryRightWidth, 6, 1, 1, 'F');
+
+  // doc.setFontSize(9);
+  // doc.setFont('helvetica', 'bolditalic');
+  // doc.setTextColor(255, 255, 255);
+  // doc.text('SUMMARY', taxSummaryRightX + 3, currentY + 4);
+
+  // let summaryY = currentY + 10;
+  // const taxSumLabelX = taxSummaryRightX + 3;
+  // const taxSumValueX = taxSummaryRightX + taxSummaryRightWidth - 3;
+
+  // // Subtotal (before discounts)
+  // const baseSubtotal = totalTaxable + (totalItemDiscount || 0);
+  // doc.setFontSize(8);
+  // doc.setFont('helvetica', 'italic');
+  // doc.setTextColor(...COLORS.muted);
+  // doc.text('Base Amount:', taxSumLabelX, summaryY);
+  // doc.setTextColor(...COLORS.primary);
+  // doc.setFont('helvetica', 'bolditalic');
+  // doc.text(`Rs ${baseSubtotal.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
+
+  // summaryY += 5;
+
+  // // Item Discounts (if any)
+  // const itemDiscount = (totalItemDiscount || 0);
+  // if (itemDiscount > 0) {
+  //   doc.setFont('helvetica', 'italic');
+  //   doc.setTextColor(239, 68, 68);
+  //   doc.text('Item Discounts:', taxSumLabelX, summaryY);
+  //   doc.setFont('helvetica', 'bolditalic');
+  //   doc.text(`- Rs ${itemDiscount.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
+  //   summaryY += 5;
+  // }
+
+  // // Subtotal (after item discounts)
+  // doc.setFont('helvetica', 'italic');
+  // doc.setTextColor(...COLORS.muted);
+  // doc.text('Subtotal:', taxSumLabelX, summaryY);
+  // doc.setTextColor(...COLORS.primary);
+  // doc.setFont('helvetica', 'bolditalic');
+  // doc.text(`Rs ${totalTaxable.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
+
+  // summaryY += 5;
+
+  // // Total Tax
+  // doc.setFont('helvetica', 'italic');
+  // doc.setTextColor(...COLORS.muted);
+  // doc.text('Total Tax:', taxSumLabelX, summaryY);
+  // doc.setTextColor(79, 70, 229);
+  // doc.setFont('helvetica', 'bolditalic');
+  // doc.text(`Rs ${totalTax.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
+
+  // summaryY += 5;
+
+  // // Total Discount (if any)
+  // const totalDiscount = (saleData.totalDiscountAmount || 0);
+  // const saleDiscount = (saleData.saleDiscount?.amount || 0);
+  // if (saleDiscount > 0) {
+  //   doc.setFont('helvetica', 'italic');
+  //   doc.setTextColor(239, 68, 68);
+  //   doc.text('Sale Discount:', taxSumLabelX, summaryY);
+  //   doc.setFont('helvetica', 'bolditalic');
+  //   doc.text(`- Rs ${saleDiscount.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
+  //   summaryY += 5;
+  // }
+
+  // if (totalDiscount > 0) {
+  //   doc.setFont('helvetica', 'italic');
+  //   doc.setTextColor(239, 68, 68);
+  //   doc.text('Total Discount:', taxSumLabelX, summaryY);
+  //   doc.setFont('helvetica', 'bolditalic');
+  //   doc.text(`- Rs ${totalDiscount.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
+  //   summaryY += 5;
+  // }
+
+  // summaryY += 2;
+
+  // // Divider
+  // doc.setDrawColor(...COLORS.accent);
+  // doc.setLineWidth(0.5);
+  // doc.line(taxSumLabelX, summaryY - 2, taxSumValueX, summaryY - 2);
+
+  // summaryY += 3;
+
+  // // Grand Total (with all discounts)
+  // doc.setFont('helvetica', 'bolditalic');
+  // doc.setFontSize(10);
+  // doc.setTextColor(...COLORS.accent);
+  // doc.text('GRAND TOTAL:', taxSumLabelX, summaryY);
+  // const finalGrandTotal = Math.max(0, saleData.totalAmount);
+  // doc.text(`Rs ${finalGrandTotal.toFixed(2)}`, taxSumValueX, summaryY, { align: 'right' });
+
+  // currentY += Math.max(taxBoxHeight, 20) + 5;
 
   // Check page break for Amount in Words & Payment Boxes
   if (currentY + 45 > pageHeight - footerHeight) {
@@ -2884,11 +3074,15 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
       doc.setFontSize(7);
       doc.setFont('helvetica', 'bolditalic');
       doc.setTextColor(...COLORS.accent);
-      doc.text('AUTHORIZED SIGNATORY', RIGHT - 40, footerY);
+      doc.text(`FOR ${String(shopName || 'OWNER').toUpperCase()}`, RIGHT, footerY, { align: 'right' });
 
       doc.setLineWidth(0.5);
       doc.setDrawColor(...COLORS.muted);
-      doc.line(RIGHT - 40, footerY + 8, RIGHT, footerY + 8);
+      doc.line(RIGHT - 40, footerY + 10, RIGHT, footerY + 10);
+
+      doc.setFontSize(6.5);
+      doc.setTextColor(...COLORS.muted);
+      doc.text('AUTHORIZED SIGNATORY', RIGHT, footerY + 13, { align: 'right' });
     }
 
     // Footer info (Appears on all pages)
@@ -2898,7 +3092,7 @@ export const generateInvoicePDF = async (saleData, shopName, businessDetails = {
     const generatedDate = saleData.createdAt
       ? new Date(saleData.createdAt).toLocaleDateString('en-IN')
       : new Date().toLocaleDateString('en-IN');
-    const footerText = `Generated on ${generatedDate} | Invoice ID: ${saleData._id?.substring(0, 8) || 'N/A'}`;
+    const footerText = `Generated on ${generatedDate} | Invoice ID: ${saleData.invoiceNumber || 'N/A'}`;
     doc.text(footerText, MARGIN_LEFT, pageHeight - 3);
 
     // Dynamic Page Number on every page
@@ -2914,7 +3108,7 @@ export const printInvoice = async (saleData, shopName, businessDetails = {}) => 
   const pdfBlob = doc.output('blob');
   const pdfUrl = URL.createObjectURL(pdfBlob);
   const printWindow = window.open(pdfUrl, '_blank');
-  const fileName = `${saleData.invoiceNumber || date}_${saleData.customer?.name || 'customer'}.pdf`;
+  const fileName = `${saleData.invoiceNumber || date}_${saleData.customer?.name || 'customer'}`;
   printWindow.document.title = fileName;
 
   if (printWindow) {

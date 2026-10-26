@@ -682,6 +682,44 @@ exports.getDashboardStats = async (req, res, next) => {
   }
 };
 
+
+// @route   DELETE /api/sales/:id
+// @desc    Delete a sale record and restore product inventory stock
+// @access  Private
+exports.deleteSale = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Find the sale belonging to the logged-in user
+    const sale = await Sale.findOne({ _id: id, user: req.user.id });
+    if (!sale) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sale record not found'
+      });
+    }
+
+    // 2. Restore product stock quantities back to inventory
+    for (const item of sale.items) {
+      await Product.findOneAndUpdate(
+        { _id: item.product, user: req.user.id },
+        { $inc: { quantity: item.quantity } }
+      );
+    }
+
+    // 3. Delete the sale record from database
+    await Sale.findByIdAndDelete(id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Sale deleted successfully and inventory stock restored'
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @route   GET /api/sales/analytics/graph
 // @desc    Get sales data for graph (by date range)
 // @access  Private
